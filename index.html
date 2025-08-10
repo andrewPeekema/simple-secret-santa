@@ -30,7 +30,7 @@
             margin-bottom: 30px;
             font-size: 14px;
         }
-        input, button, select {
+        input, button, select, textarea {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -38,6 +38,11 @@
             border-radius: 6px;
             font-size: 16px;
             box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
         }
         button {
             background: #667eea;
@@ -98,7 +103,7 @@
         .copy-btn:hover {
             background: #38a169;
         }
-        #revealSection {
+        #revealSection, #hintsSection, #viewHintsSection {
             text-align: center;
             padding: 40px 20px;
         }
@@ -174,6 +179,45 @@
             font-size: 13px;
             margin: 5px 0;
         }
+        .hints-box {
+            background: #e6f7ff;
+            border: 2px solid #1890ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .hints-box h3 {
+            color: #0050b3;
+            margin-top: 0;
+        }
+        .hint-link-display {
+            background: #f0f5ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .info-box {
+            background: #e8f4f8;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .create-hints-btn {
+            background: #1890ff;
+            margin-top: 15px;
+        }
+        .create-hints-btn:hover {
+            background: #40a9ff;
+        }
     </style>
 </head>
 <body>
@@ -222,9 +266,20 @@
         <div id="revealSection" style="display: none;">
             <!-- Content will be inserted here when revealing assignment -->
         </div>
+
+        <div id="hintsSection" style="display: none;">
+            <!-- Content for creating hints -->
+        </div>
+
+        <div id="viewHintsSection" style="display: none;">
+            <!-- Content for viewing hints -->
+        </div>
     </div>
 
     <script>
+        // Store the secret salt used for this session
+        let sessionSalt = Math.random().toString(36).substring(2, 15);
+
         // Simple shuffle function
         function shuffle(array) {
             const arr = [...array];
@@ -247,6 +302,39 @@
                     str += '=';
                 }
                 return decodeURIComponent(atob(str));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Simple hash function for creating pair keys
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        // XOR-based "encryption" for hints (good enough for friendly use)
+        function xorEncrypt(text, key) {
+            let result = '';
+            for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return btoa(result);
+        }
+
+        function xorDecrypt(encoded, key) {
+            try {
+                const text = atob(encoded);
+                let result = '';
+                for (let i = 0; i < text.length; i++) {
+                    result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+                }
+                return result;
             } catch (e) {
                 return null;
             }
@@ -393,6 +481,9 @@
             let attempts = 0;
             const maxAttempts = 1000;
             
+            // Generate a new session salt for this Secret Santa
+            sessionSalt = Math.random().toString(36).substring(2, 15);
+            
             while (attempts < maxAttempts) {
                 receivers = shuffle([...people]);
                 if (isValidAssignment(givers, receivers, exclusions)) {
@@ -414,7 +505,8 @@
                 const data = {
                     giver: givers[i],
                     receiver: receivers[i],
-                    key: key
+                    key: key,
+                    salt: sessionSalt  // Include salt for hint verification
                 };
                 assignments[givers[i]] = {
                     key: key,
@@ -465,29 +557,16 @@
             }, 2000);
         }
 
-        // Check if we're loading with a hash (someone clicked their link)
-        function checkForReveal() {
-            if (window.location.hash && window.location.hash.length > 1) {
-                const encoded = window.location.hash.substring(1);
-                const decoded = simpleDecode(encoded);
-                
-                if (decoded) {
-                    try {
-                        const data = JSON.parse(decoded);
-                        revealAssignment(data);
-                    } catch (e) {
-                        showError("Invalid Secret Santa link!");
-                    }
-                } else {
-                    showError("Invalid Secret Santa link!");
-                }
-            }
-        }
-
         function revealAssignment(data) {
             document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('hintsSection').style.display = 'none';
+            document.getElementById('viewHintsSection').style.display = 'none';
             const revealSection = document.getElementById('revealSection');
             revealSection.style.display = 'block';
+            
+            // Generate a unique hint password for this pairing
+            // Using the same formula that the recipient will use when creating hints
+            const hintPassword = simpleHash('pair-' + data.receiver + '-' + (data.salt || sessionSalt)).substring(0, 6);
             
             revealSection.innerHTML = `
                 <h1>🎄 Secret Santa Assignment</h1>
@@ -495,19 +574,192 @@
                     <h2>Hello, ${data.giver}!</h2>
                     <p style="font-size: 18px; margin: 20px 0;">You are giving a gift to:</p>
                     <div class="reveal-name">🎁 ${data.receiver}</div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin-top: 20px; border: 2px solid #ffc107;">
+                        <strong>🔑 ${data.receiver}'s Hint Password: <span style="font-family: monospace; font-size: 20px; color: #d63384;">${hintPassword}</span></strong>
+                        <p style="font-size: 13px; color: #856404; margin: 8px 0 0 0;">
+                            Save this! You'll need it to decode ${data.receiver}'s wishlist hints if they share any.
+                        </p>
+                    </div>
                 </div>
                 <p style="color: #666; margin-top: 30px; font-size: 14px;">
                     Your secret key was: ${data.key}<br>
                     Keep this assignment secret! 🤫
                 </p>
+                <div class="hints-box">
+                    <h3>💭 Want to leave hints for your Secret Santa?</h3>
+                    <p style="font-size: 14px; color: #0050b3;">Create an anonymous wishlist that only YOUR Secret Santa can decode!</p>
+                    <button class="create-hints-btn" onclick="showCreateHints('${data.giver}', '${data.salt || sessionSalt}')">
+                        Create My Wishlist
+                    </button>
+                </div>
                 <button onclick="location.href=location.pathname" style="margin-top: 20px; background: #667eea;">
                     Create New Secret Santa
                 </button>
             `;
         }
 
+        function showCreateHints(recipientName, salt) {
+            document.getElementById('revealSection').style.display = 'none';
+            document.getElementById('viewHintsSection').style.display = 'none';
+            const hintsSection = document.getElementById('hintsSection');
+            hintsSection.style.display = 'block';
+            
+            hintsSection.innerHTML = `
+                <h1>🎁 Create Your Wishlist</h1>
+                <div class="hints-box">
+                    <p style="color: #0050b3; margin-bottom: 20px;">
+                        Your wishlist will be encrypted so only YOUR Secret Santa can read it!
+                    </p>
+                    <textarea id="hintsText" placeholder="Enter your gift hints, wishlist, preferences, sizes, favorite colors, etc..."></textarea>
+                    <button class="create-hints-btn" onclick="generateHintLink('${recipientName}', '${salt}')">
+                        Generate Anonymous Hint Link
+                    </button>
+                </div>
+                <div id="hintLinkDisplay" style="display: none;"></div>
+            `;
+        }
+
+        function generateHintLink(recipientName, salt) {
+            const hintsText = document.getElementById('hintsText').value.trim();
+            
+            if (!hintsText) {
+                alert('Please enter some hints for your Secret Santa!');
+                return;
+            }
+            
+            // The password needs to be generated as: simpleHash(GIVER + RECIPIENT + salt)
+            // Since we're the recipient creating hints, we need to generate: simpleHash(TheirSecretSanta + OurName + salt)
+            // But we don't know who our Secret Santa is! So we need a different approach.
+            
+            // We'll generate a password based on just recipient + salt, and the giver will need to 
+            // recreate this same formula when they see the assignment
+            // Let's use a formula that both sides can calculate independently
+            const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).substring(0, 6);
+            
+            // Add a verification prefix to check if decryption worked
+            const dataToEncrypt = 'VALID:' + hintsText;
+            
+            // Encrypt the hints with the hint password
+            const encryptedHints = xorEncrypt(dataToEncrypt, hintPassword);
+            
+            // Create the hint data
+            const hintData = {
+                encrypted: encryptedHints
+            };
+            
+            const encoded = simpleEncode(JSON.stringify(hintData));
+            const hintUrl = window.location.origin + window.location.pathname + '#hints-' + encoded;
+            
+            // Display the link
+            const display = document.getElementById('hintLinkDisplay');
+            display.style.display = 'block';
+            display.innerHTML = `
+                <div class="hint-link-display">
+                    <h3>✅ Your hint link is ready!</h3>
+                    <p style="color: #666; font-size: 14px; margin: 15px 0;">
+                        Share this link with your Secret Santa group. Only the person who has YOU can decode it!
+                    </p>
+                    <input type="text" value="${hintUrl}" readonly id="hint-link-input" style="margin-top: 10px;">
+                    <button class="copy-btn" onclick="copyHintLink()">Copy Hint Link</button>
+                    <div class="info-box" style="margin-top: 20px;">
+                        <strong>How it works:</strong><br>
+                        • Anyone can click this link<br>
+                        • They'll need to enter a 6-character password<br>
+                        • Only YOUR Secret Santa has the correct password<br>
+                        • Others will see "Invalid password!"
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyHintLink() {
+            const input = document.getElementById('hint-link-input');
+            input.select();
+            document.execCommand('copy');
+            
+            const btn = input.nextElementSibling;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.style.background = '#38a169';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '#48bb78';
+            }, 2000);
+        }
+
+        function showViewHints(hintData) {
+            document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('revealSection').style.display = 'none';
+            document.getElementById('hintsSection').style.display = 'none';
+            const viewHintsSection = document.getElementById('viewHintsSection');
+            viewHintsSection.style.display = 'block';
+            
+            // Store hint data for use in tryDecodeHints
+            window.currentHintData = hintData;
+            
+            viewHintsSection.innerHTML = `
+                <h1>🎁 Secret Wishlist</h1>
+                <div class="hints-box">
+                    <p style="color: #0050b3; margin-bottom: 20px;">
+                        This wishlist is password-protected. Enter the 6-character password to decode it.
+                    </p>
+                    <input type="text" id="passwordInput" placeholder="Enter 6-character password" maxlength="6" style="text-transform: lowercase; font-family: monospace; font-size: 18px; text-align: center;">
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        Hint: Only the assigned Secret Santa has this password
+                    </p>
+                    <button class="create-hints-btn" onclick="tryDecodeHintsWithPassword()">
+                        Decode Hints
+                    </button>
+                </div>
+                <div id="decodedHints" style="margin-top: 20px;"></div>
+                <button onclick="location.href=location.pathname" style="margin-top: 20px; background: #667eea;">
+                    Back to Secret Santa
+                </button>
+            `;
+        }
+
+        function tryDecodeHintsWithPassword() {
+            const enteredPassword = document.getElementById('passwordInput').value.trim().toLowerCase();
+            const hintData = window.currentHintData;
+            
+            if (!enteredPassword) {
+                alert('Please enter the password!');
+                return;
+            }
+            
+            if (enteredPassword.length !== 6) {
+                alert('Password must be exactly 6 characters!');
+                return;
+            }
+            
+            const decodedDiv = document.getElementById('decodedHints');
+            
+            // Try to decrypt with the entered password
+            const decrypted = xorDecrypt(hintData.encrypted, enteredPassword);
+            
+            // Check if decryption is valid by looking for our verification prefix
+            if (decrypted && decrypted.startsWith('VALID:')) {
+                // Remove the VALID: prefix and show the actual hints
+                const actualHints = decrypted.substring(6).trim(); // Added .trim() here to remove any leading/trailing whitespace
+                decodedDiv.innerHTML = `
+                    <div class="success">
+                        <h3>🎉 Success! Here's the wishlist:</h3>
+                        <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${actualHints}</div>
+                    </div>
+                `;
+            } else {
+                decodedDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Invalid password! Only the assigned Secret Santa has the correct password.
+                    </div>
+                `;
+            }
+        }
+
         function showError(message) {
             document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('hintsSection').style.display = 'none';
+            document.getElementById('viewHintsSection').style.display = 'none';
             const revealSection = document.getElementById('revealSection');
             revealSection.style.display = 'block';
             
@@ -518,6 +770,44 @@
                     Create New Secret Santa
                 </button>
             `;
+        }
+
+        // Check on page load for assignments or hints
+        function checkForReveal() {
+            if (window.location.hash && window.location.hash.length > 1) {
+                const hash = window.location.hash.substring(1);
+                
+                // Check if it's a hint link
+                if (hash.startsWith('hints-')) {
+                    const encoded = hash.substring(6); // Remove 'hints-' prefix
+                    const decoded = simpleDecode(encoded);
+                    
+                    if (decoded) {
+                        try {
+                            const hintData = JSON.parse(decoded);
+                            showViewHints(hintData);
+                        } catch (e) {
+                            showError("Invalid hint link!");
+                        }
+                    } else {
+                        showError("Invalid hint link!");
+                    }
+                } else {
+                    // Regular assignment link
+                    const decoded = simpleDecode(hash);
+                    
+                    if (decoded) {
+                        try {
+                            const data = JSON.parse(decoded);
+                            revealAssignment(data);
+                        } catch (e) {
+                            showError("Invalid Secret Santa link!");
+                        }
+                    } else {
+                        showError("Invalid Secret Santa link!");
+                    }
+                }
+            }
         }
 
         // Update dropdowns when names change
