@@ -264,21 +264,120 @@
         </div>
 
         <div id="revealSection" style="display: none;">
-            <!-- Content will be inserted here when revealing assignment -->
         </div>
 
         <div id="hintsSection" style="display: none;">
-            <!-- Content for creating hints -->
         </div>
 
         <div id="viewHintsSection" style="display: none;">
-            <!-- Content for viewing hints -->
         </div>
     </div>
 
     <script>
         // Store the secret salt used for this session
         let sessionSalt = Math.random().toString(36).substring(2, 15);
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        // FIX: HTML escape to prevent XSS attacks
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // FIX: UTF-8 safe base64 encoding (handles emoji and international characters)
+        function utf8ToBase64(str) {
+            const bytes = new TextEncoder().encode(str);
+            let binary = '';
+            for (const byte of bytes) {
+                binary += String.fromCharCode(byte);
+            }
+            return btoa(binary);
+        }
+
+        function base64ToUtf8(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new TextDecoder().decode(bytes);
+        }
+
+        // URL-safe base64 (no padding, URL-safe chars)
+        function toUrlSafeBase64(str) {
+            return utf8ToBase64(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function fromUrlSafeBase64(str) {
+            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            return base64ToUtf8(base64);
+        }
+
+        // Binary-safe URL base64 (for encrypted bytes)
+        function bytesToUrlSafeBase64(bytes) {
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function urlSafeBase64ToBytes(str) {
+            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        // Legacy encoding (for backward compatibility)
+        function legacyDecode(str) {
+            try {
+                while (str.length % 4) str += '=';
+                return decodeURIComponent(atob(str));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // FIX: Modern clipboard API with fallback
+        async function copyToClipboard(text, button) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+                
+                // Visual feedback
+                const originalText = button.textContent;
+                const originalBg = button.style.background;
+                button.textContent = 'Copied!';
+                button.style.background = '#38a169';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = originalBg || '#48bb78';
+                }, 2000);
+            } catch (err) {
+                alert('Failed to copy. Please select and copy manually.');
+            }
+        }
 
         // Simple shuffle function
         function shuffle(array) {
@@ -290,55 +389,109 @@
             return arr;
         }
 
-        // Simple string encoding (not secure, but fine for friendly use)
-        function simpleEncode(str) {
-            return btoa(encodeURIComponent(str)).replace(/=/g, '');
-        }
-
-        function simpleDecode(str) {
-            try {
-                // Add back padding if needed
-                while (str.length % 4) {
-                    str += '=';
-                }
-                return decodeURIComponent(atob(str));
-            } catch (e) {
-                return null;
-            }
-        }
-
         // Simple hash function for creating pair keys
         function simpleHash(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 const char = str.charCodeAt(i);
                 hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32bit integer
+                hash = hash & hash;
             }
             return Math.abs(hash).toString(36);
         }
 
-        // XOR-based "encryption" for hints (good enough for friendly use)
-        function xorEncrypt(text, key) {
-            let result = '';
-            for (let i = 0; i < text.length; i++) {
-                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
-            }
-            return btoa(result);
+        // ============================================
+        // ENCODING FUNCTIONS
+        // ============================================
+
+        // FIX: Use JSON for assignment encoding (handles any characters in names)
+        function encodeAssignment(data) {
+            return toUrlSafeBase64(JSON.stringify(data));
         }
 
-        function xorDecrypt(encoded, key) {
+        function decodeAssignment(encoded) {
+            // Try new compact JSON format first
             try {
-                const text = atob(encoded);
-                let result = '';
-                for (let i = 0; i < text.length; i++) {
-                    result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+                const decoded = fromUrlSafeBase64(encoded);
+                const data = JSON.parse(decoded);
+                if (data.giver && data.receiver) {
+                    return data;
                 }
-                return result;
+            } catch (e) {}
+            
+            // Try pipe-delimited format (intermediate version)
+            try {
+                const decoded = fromUrlSafeBase64(encoded);
+                if (decoded.includes('|') && !decoded.includes('{')) {
+                    const parts = decoded.split('|');
+                    if (parts.length === 4) {
+                        return { giver: parts[0], receiver: parts[1], key: parts[2], salt: parts[3] };
+                    }
+                }
+            } catch (e) {}
+            
+            // Fall back to legacy format
+            try {
+                const legacy = legacyDecode(encoded);
+                if (legacy) return JSON.parse(legacy);
+            } catch (e) {}
+            
+            return null;
+        }
+
+        // XOR encryption (operates on UTF-8 bytes)
+        function xorEncrypt(text, key) {
+            const textBytes = new TextEncoder().encode(text);
+            const keyBytes = new TextEncoder().encode(key);
+            const result = new Uint8Array(textBytes.length);
+            for (let i = 0; i < textBytes.length; i++) {
+                result[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
+            }
+            return result;
+        }
+
+        function xorDecrypt(encryptedBytes, key) {
+            const keyBytes = new TextEncoder().encode(key);
+            const result = new Uint8Array(encryptedBytes.length);
+            for (let i = 0; i < encryptedBytes.length; i++) {
+                result[i] = encryptedBytes[i] ^ keyBytes[i % keyBytes.length];
+            }
+            return new TextDecoder().decode(result);
+        }
+
+        // Hint encoding
+        function encodeHints(encryptedBytes) {
+            return bytesToUrlSafeBase64(encryptedBytes);
+        }
+
+        function decodeHints(encoded) {
+            // Check for legacy format (starts with JSON pattern)
+            if (encoded.startsWith('JTdC')) {
+                try {
+                    const legacy = legacyDecode(encoded);
+                    if (legacy) {
+                        const json = JSON.parse(legacy);
+                        const binary = atob(json.encrypted);
+                        const bytes = new Uint8Array(binary.length);
+                        for (let i = 0; i < binary.length; i++) {
+                            bytes[i] = binary.charCodeAt(i);
+                        }
+                        return bytes;
+                    }
+                } catch (e) {}
+            }
+            
+            // New format: direct URL-safe base64 of encrypted bytes
+            try {
+                return urlSafeBase64ToBytes(encoded);
             } catch (e) {
                 return null;
             }
         }
+
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
 
         function addPerson() {
             const peopleList = document.getElementById('peopleList');
@@ -380,7 +533,6 @@
                 }
             });
 
-            // Update all exclusion dropdowns
             const selects = document.querySelectorAll('.person1-select, .person2-select');
             selects.forEach(select => {
                 const currentValue = select.value;
@@ -406,7 +558,6 @@
                 const person2 = row.querySelector('.person2-select').value;
                 
                 if (person1 && person2 && person1 !== person2) {
-                    // Add bidirectional exclusions
                     if (!exclusions[person1]) exclusions[person1] = [];
                     if (!exclusions[person2]) exclusions[person2] = [];
                     
@@ -424,12 +575,9 @@
 
         function isValidAssignment(givers, receivers, exclusions) {
             for (let i = 0; i < givers.length; i++) {
-                // Check if someone got themselves
                 if (givers[i] === receivers[i]) {
                     return false;
                 }
-                
-                // Check exclusions
                 if (exclusions[givers[i]] && exclusions[givers[i]].includes(receivers[i])) {
                     return false;
                 }
@@ -438,13 +586,11 @@
         }
 
         function generateSecretSanta() {
-            // Update dropdowns first to catch any last-minute name changes
             updateExclusionDropdowns();
             
             const inputs = document.querySelectorAll('.person-name');
             const people = [];
             
-            // Collect names
             inputs.forEach(input => {
                 const name = input.value.trim();
                 if (name) {
@@ -452,7 +598,6 @@
                 }
             });
 
-            // Validation
             if (people.length < 3) {
                 alert('You need at least 3 people for Secret Santa!');
                 return;
@@ -463,10 +608,20 @@
                 return;
             }
 
-            // Get exclusions
+            // FIX: Check for case-insensitive duplicates
+            const lowerCaseNames = people.map(n => n.toLowerCase());
+            const lowerCaseSet = new Set(lowerCaseNames);
+            if (lowerCaseSet.size !== people.length) {
+                const duplicates = people.filter((name, i) => 
+                    lowerCaseNames.indexOf(name.toLowerCase()) !== i
+                );
+                if (!confirm(`Warning: Some names differ only by capitalization (e.g., "${duplicates[0]}"). This might cause confusion. Continue anyway?`)) {
+                    return;
+                }
+            }
+
             const exclusions = getExclusions();
             
-            // Check if the exclusions make it impossible
             for (let person of people) {
                 const excluded = exclusions[person] || [];
                 if (excluded.length >= people.length - 1) {
@@ -475,13 +630,11 @@
                 }
             }
 
-            // Create a valid Secret Santa pairing
             let givers = [...people];
             let receivers = null;
             let attempts = 0;
             const maxAttempts = 1000;
             
-            // Generate a new session salt for this Secret Santa
             sessionSalt = Math.random().toString(36).substring(2, 15);
             
             while (attempts < maxAttempts) {
@@ -497,24 +650,21 @@
                 return;
             }
 
-            // Generate simple "encrypted" assignments
             const assignments = {};
             for (let i = 0; i < givers.length; i++) {
-                // Create a simple key for each person
                 const key = Math.random().toString(36).substring(2, 8);
                 const data = {
                     giver: givers[i],
                     receiver: receivers[i],
                     key: key,
-                    salt: sessionSalt  // Include salt for hint verification
+                    salt: sessionSalt
                 };
                 assignments[givers[i]] = {
                     key: key,
-                    encoded: simpleEncode(JSON.stringify(data))
+                    encoded: encodeAssignment(data)
                 };
             }
 
-            // Display the links
             displayResults(assignments);
         }
 
@@ -529,32 +679,18 @@
                 const url = window.location.origin + window.location.pathname + 
                            '#' + assignments[person].encoded;
                 
+                const inputId = 'link-' + Math.random().toString(36).substring(2, 8);
+                
                 div.innerHTML = `
-                    <strong>${person}'s link (secret key: ${assignments[person].key})</strong>
-                    <input type="text" value="${url}" readonly id="link-${person}">
-                    <button class="copy-btn" onclick="copyLink('${person}')">Copy Link</button>
+                    <strong>${escapeHtml(person)}'s link (secret key: ${assignments[person].key})</strong>
+                    <input type="text" value="${escapeHtml(url)}" readonly id="${inputId}">
+                    <button class="copy-btn" onclick="copyToClipboard(document.getElementById('${inputId}').value, this)">Copy Link</button>
                 `;
                 
                 linksList.appendChild(div);
             });
 
             document.getElementById('results').style.display = 'block';
-        }
-
-        function copyLink(person) {
-            const input = document.getElementById(`link-${person}`);
-            input.select();
-            document.execCommand('copy');
-            
-            // Find the button and give feedback
-            const btn = input.nextElementSibling;
-            const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
-            btn.style.background = '#38a169';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '#48bb78';
-            }, 2000);
         }
 
         function revealAssignment(data) {
@@ -564,32 +700,35 @@
             const revealSection = document.getElementById('revealSection');
             revealSection.style.display = 'block';
             
-            // Generate a unique hint password for this pairing
-            // Using the same formula that the recipient will use when creating hints
-            // FIX: Use padStart to ensure consistent 6-character passwords
             const hintPassword = simpleHash('pair-' + data.receiver + '-' + (data.salt || sessionSalt)).padStart(6, '0').substring(0, 6);
+            
+            // FIX: Escape all user-provided data
+            const safeGiver = escapeHtml(data.giver);
+            const safeReceiver = escapeHtml(data.receiver);
+            const safeKey = escapeHtml(data.key);
+            const safeSalt = escapeHtml(data.salt || sessionSalt);
             
             revealSection.innerHTML = `
                 <h1>🎄 Secret Santa Assignment</h1>
                 <div class="reveal-box">
-                    <h2>Hello, ${data.giver}!</h2>
+                    <h2>Hello, ${safeGiver}!</h2>
                     <p style="font-size: 18px; margin: 20px 0;">You are giving a gift to:</p>
-                    <div class="reveal-name">🎁 ${data.receiver}</div>
+                    <div class="reveal-name">🎁 ${safeReceiver}</div>
                     <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin-top: 20px; border: 2px solid #ffc107;">
-                        <strong>🔑 ${data.receiver}'s Hint Password: <span style="font-family: monospace; font-size: 20px; color: #d63384;">${hintPassword}</span></strong>
+                        <strong>🔑 ${safeReceiver}'s Hint Password: <span style="font-family: monospace; font-size: 20px; color: #d63384;">${hintPassword}</span></strong>
                         <p style="font-size: 13px; color: #856404; margin: 8px 0 0 0;">
-                            Save this! You'll need it to decode ${data.receiver}'s wishlist hints if they share any.
+                            Save this! You'll need it to decode ${safeReceiver}'s wishlist hints if they share any.
                         </p>
                     </div>
                 </div>
                 <p style="color: #666; margin-top: 30px; font-size: 14px;">
-                    Your secret key was: ${data.key}<br>
+                    Your secret key was: ${safeKey}<br>
                     Keep this assignment secret! 🤫
                 </p>
                 <div class="hints-box">
                     <h3>💭 Want to leave hints for your Secret Santa?</h3>
                     <p style="font-size: 14px; color: #0050b3;">Create an anonymous wishlist that only YOUR Secret Santa can decode!</p>
-                    <button class="create-hints-btn" onclick="showCreateHints('${data.giver}', '${data.salt || sessionSalt}')">
+                    <button class="create-hints-btn" onclick="showCreateHints('${safeGiver.replace(/'/g, "\\'")}', '${safeSalt}')">
                         Create My Wishlist
                     </button>
                 </div>
@@ -605,6 +744,10 @@
             const hintsSection = document.getElementById('hintsSection');
             hintsSection.style.display = 'block';
             
+            // Store for use in generateHintLink
+            window.hintRecipientName = recipientName;
+            window.hintSalt = salt;
+            
             hintsSection.innerHTML = `
                 <h1>🎁 Create Your Wishlist</h1>
                 <div class="hints-box">
@@ -612,47 +755,52 @@
                         Your wishlist will be encrypted so only YOUR Secret Santa can read it!
                     </p>
                     <textarea id="hintsText" placeholder="Enter your gift hints, wishlist, preferences, sizes, favorite colors, etc..."></textarea>
-                    <button class="create-hints-btn" onclick="generateHintLink('${recipientName}', '${salt}')">
+                    <p id="hintLengthWarning" style="display: none; color: #c53030; font-size: 13px;"></p>
+                    <button class="create-hints-btn" onclick="generateHintLink()">
                         Generate Anonymous Hint Link
                     </button>
                 </div>
                 <div id="hintLinkDisplay" style="display: none;"></div>
             `;
+            
+            // FIX: Add length warning for very long hints
+            document.getElementById('hintsText').addEventListener('input', function() {
+                const length = this.value.length;
+                const warning = document.getElementById('hintLengthWarning');
+                if (length > 1000) {
+                    warning.style.display = 'block';
+                    warning.textContent = `⚠️ Your hints are ${length} characters. Very long hints may create URLs that don't work in all browsers. Consider keeping it under 1000 characters.`;
+                } else {
+                    warning.style.display = 'none';
+                }
+            });
         }
 
-        function generateHintLink(recipientName, salt) {
+        function generateHintLink() {
             const hintsText = document.getElementById('hintsText').value.trim();
+            const recipientName = window.hintRecipientName;
+            const salt = window.hintSalt;
             
             if (!hintsText) {
                 alert('Please enter some hints for your Secret Santa!');
                 return;
             }
             
-            // The password needs to be generated as: simpleHash(GIVER + RECIPIENT + salt)
-            // Since we're the recipient creating hints, we need to generate: simpleHash(TheirSecretSanta + OurName + salt)
-            // But we don't know who our Secret Santa is! So we need a different approach.
+            // FIX: Warn if hints are very long
+            if (hintsText.length > 1500) {
+                if (!confirm('Your hints are very long and may create a URL that doesn\'t work in all browsers or apps. Continue anyway?')) {
+                    return;
+                }
+            }
             
-            // We'll generate a password based on just recipient + salt, and the giver will need to 
-            // recreate this same formula when they see the assignment
-            // Let's use a formula that both sides can calculate independently
-            // FIX: Use padStart to ensure consistent 6-character passwords
             const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
             
-            // Add a verification prefix to check if decryption worked
             const dataToEncrypt = 'VALID:' + hintsText;
+            const encryptedBytes = xorEncrypt(dataToEncrypt, hintPassword);
+            const encoded = encodeHints(encryptedBytes);
             
-            // Encrypt the hints with the hint password
-            const encryptedHints = xorEncrypt(dataToEncrypt, hintPassword);
-            
-            // Create the hint data
-            const hintData = {
-                encrypted: encryptedHints
-            };
-            
-            const encoded = simpleEncode(JSON.stringify(hintData));
             const hintUrl = window.location.origin + window.location.pathname + '#hints-' + encoded;
             
-            // Display the link
             const display = document.getElementById('hintLinkDisplay');
             display.style.display = 'block';
             display.innerHTML = `
@@ -661,8 +809,8 @@
                     <p style="color: #666; font-size: 14px; margin: 15px 0;">
                         Share this link with your Secret Santa group. Only the person who has YOU can decode it!
                     </p>
-                    <input type="text" value="${hintUrl}" readonly id="hint-link-input" style="margin-top: 10px;">
-                    <button class="copy-btn" onclick="copyHintLink()">Copy Hint Link</button>
+                    <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 10px;">
+                    <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Hint Link</button>
                     <div class="info-box" style="margin-top: 20px;">
                         <strong>How it works:</strong><br>
                         • Anyone can click this link<br>
@@ -674,30 +822,14 @@
             `;
         }
 
-        function copyHintLink() {
-            const input = document.getElementById('hint-link-input');
-            input.select();
-            document.execCommand('copy');
-            
-            const btn = input.nextElementSibling;
-            const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
-            btn.style.background = '#38a169';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '#48bb78';
-            }, 2000);
-        }
-
-        function showViewHints(hintData) {
+        function showViewHints(encryptedBytes) {
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('revealSection').style.display = 'none';
             document.getElementById('hintsSection').style.display = 'none';
             const viewHintsSection = document.getElementById('viewHintsSection');
             viewHintsSection.style.display = 'block';
             
-            // Store hint data for use in tryDecodeHints
-            window.currentHintData = hintData;
+            window.currentEncryptedBytes = encryptedBytes;
             
             viewHintsSection.innerHTML = `
                 <h1>🎁 Secret Wishlist</h1>
@@ -722,14 +854,13 @@
 
         function tryDecodeHintsWithPassword() {
             const enteredPassword = document.getElementById('passwordInput').value.trim().toLowerCase();
-            const hintData = window.currentHintData;
+            const encryptedBytes = window.currentEncryptedBytes;
             
             if (!enteredPassword) {
                 alert('Please enter the password!');
                 return;
             }
             
-            // FIX: Accept passwords of 5 or 6 characters to handle legacy short passwords
             if (enteredPassword.length < 5 || enteredPassword.length > 6) {
                 alert('Password must be 5-6 characters!');
                 return;
@@ -737,24 +868,21 @@
             
             const decodedDiv = document.getElementById('decodedHints');
             
-            // Try to decrypt with the entered password
-            let decrypted = xorDecrypt(hintData.encrypted, enteredPassword);
+            let decrypted = xorDecrypt(encryptedBytes, enteredPassword);
             
-            // If password is 5 chars and doesn't work, try padding it for future compatibility
+            // If 5 chars and doesn't work, try with '0' prefix
             if (enteredPassword.length === 5 && (!decrypted || !decrypted.startsWith('VALID:'))) {
-                // Try with '0' prefix (padStart behavior)
                 const paddedPassword = '0' + enteredPassword;
-                decrypted = xorDecrypt(hintData.encrypted, paddedPassword);
+                decrypted = xorDecrypt(encryptedBytes, paddedPassword);
             }
             
-            // Check if decryption is valid by looking for our verification prefix
             if (decrypted && decrypted.startsWith('VALID:')) {
-                // Remove the VALID: prefix and show the actual hints
-                const actualHints = decrypted.substring(6).trim(); // Added .trim() here to remove any leading/trailing whitespace
+                const actualHints = decrypted.substring(6).trim();
+                // FIX: Escape HTML to prevent XSS
                 decodedDiv.innerHTML = `
                     <div class="success">
                         <h3>🎉 Success! Here's the wishlist:</h3>
-                        <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${actualHints}</div>
+                        <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(actualHints)}</div>
                     </div>
                 `;
             } else {
@@ -775,44 +903,31 @@
             
             revealSection.innerHTML = `
                 <h1>❌ Oops!</h1>
-                <div class="error">${message}</div>
+                <div class="error">${escapeHtml(message)}</div>
                 <button onclick="location.href=location.pathname" style="margin-top: 20px;">
                     Create New Secret Santa
                 </button>
             `;
         }
 
-        // Check on page load for assignments or hints
         function checkForReveal() {
             if (window.location.hash && window.location.hash.length > 1) {
                 const hash = window.location.hash.substring(1);
                 
-                // Check if it's a hint link
                 if (hash.startsWith('hints-')) {
-                    const encoded = hash.substring(6); // Remove 'hints-' prefix
-                    const decoded = simpleDecode(encoded);
+                    const encoded = hash.substring(6);
+                    const encryptedBytes = decodeHints(encoded);
                     
-                    if (decoded) {
-                        try {
-                            const hintData = JSON.parse(decoded);
-                            showViewHints(hintData);
-                        } catch (e) {
-                            showError("Invalid hint link!");
-                        }
+                    if (encryptedBytes) {
+                        showViewHints(encryptedBytes);
                     } else {
                         showError("Invalid hint link!");
                     }
                 } else {
-                    // Regular assignment link
-                    const decoded = simpleDecode(hash);
+                    const data = decodeAssignment(hash);
                     
-                    if (decoded) {
-                        try {
-                            const data = JSON.parse(decoded);
-                            revealAssignment(data);
-                        } catch (e) {
-                            showError("Invalid Secret Santa link!");
-                        }
+                    if (data) {
+                        revealAssignment(data);
                     } else {
                         showError("Invalid Secret Santa link!");
                     }
@@ -820,14 +935,12 @@
             }
         }
 
-        // Update dropdowns when names change
         document.addEventListener('input', function(e) {
             if (e.target.classList.contains('person-name')) {
                 updateExclusionDropdowns();
             }
         });
 
-        // Check on page load
         checkForReveal();
     </script>
 </body>
