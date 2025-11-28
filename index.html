@@ -566,7 +566,8 @@
             
             // Generate a unique hint password for this pairing
             // Using the same formula that the recipient will use when creating hints
-            const hintPassword = simpleHash('pair-' + data.receiver + '-' + (data.salt || sessionSalt)).substring(0, 6);
+            // FIX: Use padStart to ensure consistent 6-character passwords
+            const hintPassword = simpleHash('pair-' + data.receiver + '-' + (data.salt || sessionSalt)).padStart(6, '0').substring(0, 6);
             
             revealSection.innerHTML = `
                 <h1>🎄 Secret Santa Assignment</h1>
@@ -634,7 +635,8 @@
             // We'll generate a password based on just recipient + salt, and the giver will need to 
             // recreate this same formula when they see the assignment
             // Let's use a formula that both sides can calculate independently
-            const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).substring(0, 6);
+            // FIX: Use padStart to ensure consistent 6-character passwords
+            const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
             
             // Add a verification prefix to check if decryption worked
             const dataToEncrypt = 'VALID:' + hintsText;
@@ -701,9 +703,9 @@
                 <h1>🎁 Secret Wishlist</h1>
                 <div class="hints-box">
                     <p style="color: #0050b3; margin-bottom: 20px;">
-                        This wishlist is password-protected. Enter the 6-character password to decode it.
+                        This wishlist is password-protected. Enter the password to decode it.
                     </p>
-                    <input type="text" id="passwordInput" placeholder="Enter 6-character password" maxlength="6" style="text-transform: lowercase; font-family: monospace; font-size: 18px; text-align: center;">
+                    <input type="text" id="passwordInput" placeholder="Enter password (5-6 characters)" maxlength="6" style="text-transform: lowercase; font-family: monospace; font-size: 18px; text-align: center;">
                     <p style="font-size: 12px; color: #666; margin-top: 5px;">
                         Hint: Only the assigned Secret Santa has this password
                     </p>
@@ -727,15 +729,23 @@
                 return;
             }
             
-            if (enteredPassword.length !== 6) {
-                alert('Password must be exactly 6 characters!');
+            // FIX: Accept passwords of 5 or 6 characters to handle legacy short passwords
+            if (enteredPassword.length < 5 || enteredPassword.length > 6) {
+                alert('Password must be 5-6 characters!');
                 return;
             }
             
             const decodedDiv = document.getElementById('decodedHints');
             
             // Try to decrypt with the entered password
-            const decrypted = xorDecrypt(hintData.encrypted, enteredPassword);
+            let decrypted = xorDecrypt(hintData.encrypted, enteredPassword);
+            
+            // If password is 5 chars and doesn't work, try padding it for future compatibility
+            if (enteredPassword.length === 5 && (!decrypted || !decrypted.startsWith('VALID:'))) {
+                // Try with '0' prefix (padStart behavior)
+                const paddedPassword = '0' + enteredPassword;
+                decrypted = xorDecrypt(hintData.encrypted, paddedPassword);
+            }
             
             // Check if decryption is valid by looking for our verification prefix
             if (decrypted && decrypted.startsWith('VALID:')) {
