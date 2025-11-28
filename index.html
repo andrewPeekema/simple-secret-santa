@@ -278,47 +278,143 @@
         let sessionSalt = Math.random().toString(36).substring(2, 15);
 
         // ============================================
+        // COMPRESSION SUPPORT DETECTION
+        // ============================================
+        
+        // Check if browser supports CompressionStream with deflate-raw
+        const supportsCompression = (async () => {
+            try {
+                if (typeof CompressionStream === 'undefined') return false;
+                // Test that deflate-raw specifically works
+                const testStream = new CompressionStream('deflate-raw');
+                return true;
+            } catch (e) {
+                return false;
+            }
+        })();
+
+        // Format header bytes
+        const FORMAT_UNCOMPRESSED = 0x00;
+        const FORMAT_DEFLATE_RAW = 0x01;
+
+        // ============================================
+        // COMPRESSION FUNCTIONS
+        // ============================================
+
+        async function compressBytes(data) {
+            const hasCompression = await supportsCompression;
+            if (!hasCompression) {
+                // Return uncompressed with header
+                const result = new Uint8Array(data.length + 1);
+                result[0] = FORMAT_UNCOMPRESSED;
+                result.set(data, 1);
+                return result;
+            }
+
+            try {
+                const stream = new CompressionStream('deflate-raw');
+                const writer = stream.writable.getWriter();
+                writer.write(data);
+                writer.close();
+
+                const chunks = [];
+                const reader = stream.readable.getReader();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                }
+
+                // Calculate total length
+                const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+                const compressed = new Uint8Array(totalLength + 1);
+                compressed[0] = FORMAT_DEFLATE_RAW;
+                
+                let offset = 1;
+                for (const chunk of chunks) {
+                    compressed.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                // Only use compression if it actually saves space
+                if (compressed.length < data.length + 1) {
+                    return compressed;
+                } else {
+                    const result = new Uint8Array(data.length + 1);
+                    result[0] = FORMAT_UNCOMPRESSED;
+                    result.set(data, 1);
+                    return result;
+                }
+            } catch (e) {
+                // Fallback to uncompressed
+                const result = new Uint8Array(data.length + 1);
+                result[0] = FORMAT_UNCOMPRESSED;
+                result.set(data, 1);
+                return result;
+            }
+        }
+
+        async function decompressBytes(data) {
+            if (data.length === 0) return new Uint8Array(0);
+
+            const format = data[0];
+            const payload = data.slice(1);
+
+            if (format === FORMAT_UNCOMPRESSED) {
+                return payload;
+            }
+
+            if (format === FORMAT_DEFLATE_RAW) {
+                try {
+                    const stream = new DecompressionStream('deflate-raw');
+                    const writer = stream.writable.getWriter();
+                    writer.write(payload);
+                    writer.close();
+
+                    const chunks = [];
+                    const reader = stream.readable.getReader();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+                    const result = new Uint8Array(totalLength);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                        result.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+                    return result;
+                } catch (e) {
+                    console.error('Decompression failed:', e);
+                    return null;
+                }
+            }
+
+            // Unknown format - try treating entire data as legacy uncompressed
+            return data;
+        }
+
+        // ============================================
         // UTILITY FUNCTIONS
         // ============================================
 
-        // FIX: HTML escape to prevent XSS attacks
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // FIX: UTF-8 safe base64 encoding (handles emoji and international characters)
-        function utf8ToBase64(str) {
-            const bytes = new TextEncoder().encode(str);
-            let binary = '';
-            for (const byte of bytes) {
-                binary += String.fromCharCode(byte);
-            }
-            return btoa(binary);
+        function utf8ToBytes(str) {
+            return new TextEncoder().encode(str);
         }
 
-        function base64ToUtf8(base64) {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
+        function bytesToUtf8(bytes) {
             return new TextDecoder().decode(bytes);
         }
 
-        // URL-safe base64 (no padding, URL-safe chars)
-        function toUrlSafeBase64(str) {
-            return utf8ToBase64(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-        }
-
-        function fromUrlSafeBase64(str) {
-            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4) base64 += '=';
-            return base64ToUtf8(base64);
-        }
-
-        // Binary-safe URL base64 (for encrypted bytes)
         function bytesToUrlSafeBase64(bytes) {
             let binary = '';
             for (let i = 0; i < bytes.length; i++) {
@@ -338,7 +434,7 @@
             return bytes;
         }
 
-        // Legacy encoding (for backward compatibility)
+        // Legacy decoding for backward compatibility
         function legacyDecode(str) {
             try {
                 while (str.length % 4) str += '=';
@@ -348,13 +444,11 @@
             }
         }
 
-        // FIX: Modern clipboard API with fallback
         async function copyToClipboard(text, button) {
             try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(text);
                 } else {
-                    // Fallback for older browsers
                     const textArea = document.createElement('textarea');
                     textArea.value = text;
                     textArea.style.position = 'fixed';
@@ -365,7 +459,6 @@
                     document.body.removeChild(textArea);
                 }
                 
-                // Visual feedback
                 const originalText = button.textContent;
                 const originalBg = button.style.background;
                 button.textContent = 'Copied!';
@@ -379,7 +472,6 @@
             }
         }
 
-        // Simple shuffle function
         function shuffle(array) {
             const arr = [...array];
             for (let i = arr.length - 1; i > 0; i--) {
@@ -389,7 +481,6 @@
             return arr;
         }
 
-        // Simple hash function for creating pair keys
         function simpleHash(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -404,24 +495,27 @@
         // ENCODING FUNCTIONS
         // ============================================
 
-        // FIX: Use JSON for assignment encoding (handles any characters in names)
         function encodeAssignment(data) {
-            return toUrlSafeBase64(JSON.stringify(data));
+            const json = JSON.stringify(data);
+            const bytes = utf8ToBytes(json);
+            return bytesToUrlSafeBase64(bytes);
         }
 
         function decodeAssignment(encoded) {
-            // Try new compact JSON format first
+            // Try new compact JSON format
             try {
-                const decoded = fromUrlSafeBase64(encoded);
-                const data = JSON.parse(decoded);
+                const bytes = urlSafeBase64ToBytes(encoded);
+                const json = bytesToUtf8(bytes);
+                const data = JSON.parse(json);
                 if (data.giver && data.receiver) {
                     return data;
                 }
             } catch (e) {}
             
-            // Try pipe-delimited format (intermediate version)
+            // Try pipe-delimited format
             try {
-                const decoded = fromUrlSafeBase64(encoded);
+                const bytes = urlSafeBase64ToBytes(encoded);
+                const decoded = bytesToUtf8(bytes);
                 if (decoded.includes('|') && !decoded.includes('{')) {
                     const parts = decoded.split('|');
                     if (parts.length === 4) {
@@ -439,33 +533,27 @@
             return null;
         }
 
-        // XOR encryption (operates on UTF-8 bytes)
-        function xorEncrypt(text, key) {
-            const textBytes = new TextEncoder().encode(text);
-            const keyBytes = new TextEncoder().encode(key);
-            const result = new Uint8Array(textBytes.length);
-            for (let i = 0; i < textBytes.length; i++) {
-                result[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
+        function xorEncrypt(bytes, key) {
+            const keyBytes = utf8ToBytes(key);
+            const result = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++) {
+                result[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
             }
             return result;
         }
 
-        function xorDecrypt(encryptedBytes, key) {
-            const keyBytes = new TextEncoder().encode(key);
-            const result = new Uint8Array(encryptedBytes.length);
-            for (let i = 0; i < encryptedBytes.length; i++) {
-                result[i] = encryptedBytes[i] ^ keyBytes[i % keyBytes.length];
-            }
-            return new TextDecoder().decode(result);
+        // XOR is symmetric
+        const xorDecrypt = xorEncrypt;
+
+        async function encodeHints(plaintext, password) {
+            const plaintextBytes = utf8ToBytes(plaintext);
+            const compressed = await compressBytes(plaintextBytes);
+            const encrypted = xorEncrypt(compressed, password);
+            return bytesToUrlSafeBase64(encrypted);
         }
 
-        // Hint encoding
-        function encodeHints(encryptedBytes) {
-            return bytesToUrlSafeBase64(encryptedBytes);
-        }
-
-        function decodeHints(encoded) {
-            // Check for legacy format (starts with JSON pattern)
+        async function decodeHints(encoded) {
+            // Check for legacy format (starts with JSON pattern after decode)
             if (encoded.startsWith('JTdC')) {
                 try {
                     const legacy = legacyDecode(encoded);
@@ -476,14 +564,16 @@
                         for (let i = 0; i < binary.length; i++) {
                             bytes[i] = binary.charCodeAt(i);
                         }
-                        return bytes;
+                        // Legacy format has no compression header
+                        return { bytes, isLegacy: true };
                     }
                 } catch (e) {}
             }
             
-            // New format: direct URL-safe base64 of encrypted bytes
+            // New format
             try {
-                return urlSafeBase64ToBytes(encoded);
+                const bytes = urlSafeBase64ToBytes(encoded);
+                return { bytes, isLegacy: false };
             } catch (e) {
                 return null;
             }
@@ -528,9 +618,7 @@
             
             inputs.forEach(input => {
                 const name = input.value.trim();
-                if (name) {
-                    people.push(name);
-                }
+                if (name) people.push(name);
             });
 
             const selects = document.querySelectorAll('.person1-select, .person2-select');
@@ -541,9 +629,7 @@
                     const option = document.createElement('option');
                     option.value = person;
                     option.textContent = person;
-                    if (person === currentValue) {
-                        option.selected = true;
-                    }
+                    if (person === currentValue) option.selected = true;
                     select.appendChild(option);
                 });
             });
@@ -561,12 +647,8 @@
                     if (!exclusions[person1]) exclusions[person1] = [];
                     if (!exclusions[person2]) exclusions[person2] = [];
                     
-                    if (!exclusions[person1].includes(person2)) {
-                        exclusions[person1].push(person2);
-                    }
-                    if (!exclusions[person2].includes(person1)) {
-                        exclusions[person2].push(person1);
-                    }
+                    if (!exclusions[person1].includes(person2)) exclusions[person1].push(person2);
+                    if (!exclusions[person2].includes(person1)) exclusions[person2].push(person1);
                 }
             });
             
@@ -575,12 +657,8 @@
 
         function isValidAssignment(givers, receivers, exclusions) {
             for (let i = 0; i < givers.length; i++) {
-                if (givers[i] === receivers[i]) {
-                    return false;
-                }
-                if (exclusions[givers[i]] && exclusions[givers[i]].includes(receivers[i])) {
-                    return false;
-                }
+                if (givers[i] === receivers[i]) return false;
+                if (exclusions[givers[i]] && exclusions[givers[i]].includes(receivers[i])) return false;
             }
             return true;
         }
@@ -593,9 +671,7 @@
             
             inputs.forEach(input => {
                 const name = input.value.trim();
-                if (name) {
-                    people.push(name);
-                }
+                if (name) people.push(name);
             });
 
             if (people.length < 3) {
@@ -608,7 +684,7 @@
                 return;
             }
 
-            // FIX: Check for case-insensitive duplicates
+            // Check for case-insensitive duplicates
             const lowerCaseNames = people.map(n => n.toLowerCase());
             const lowerCaseSet = new Set(lowerCaseNames);
             if (lowerCaseSet.size !== people.length) {
@@ -639,9 +715,7 @@
             
             while (attempts < maxAttempts) {
                 receivers = shuffle([...people]);
-                if (isValidAssignment(givers, receivers, exclusions)) {
-                    break;
-                }
+                if (isValidAssignment(givers, receivers, exclusions)) break;
                 attempts++;
             }
             
@@ -702,7 +776,6 @@
             
             const hintPassword = simpleHash('pair-' + data.receiver + '-' + (data.salt || sessionSalt)).padStart(6, '0').substring(0, 6);
             
-            // FIX: Escape all user-provided data
             const safeGiver = escapeHtml(data.giver);
             const safeReceiver = escapeHtml(data.receiver);
             const safeKey = escapeHtml(data.key);
@@ -744,7 +817,6 @@
             const hintsSection = document.getElementById('hintsSection');
             hintsSection.style.display = 'block';
             
-            // Store for use in generateHintLink
             window.hintRecipientName = recipientName;
             window.hintSalt = salt;
             
@@ -763,20 +835,19 @@
                 <div id="hintLinkDisplay" style="display: none;"></div>
             `;
             
-            // FIX: Add length warning for very long hints
             document.getElementById('hintsText').addEventListener('input', function() {
                 const length = this.value.length;
                 const warning = document.getElementById('hintLengthWarning');
-                if (length > 1000) {
+                if (length > 1500) {
                     warning.style.display = 'block';
-                    warning.textContent = `⚠️ Your hints are ${length} characters. Very long hints may create URLs that don't work in all browsers. Consider keeping it under 1000 characters.`;
+                    warning.textContent = `⚠️ Your hints are ${length} characters. Very long hints may create URLs that don't work in all browsers.`;
                 } else {
                     warning.style.display = 'none';
                 }
             });
         }
 
-        function generateHintLink() {
+        async function generateHintLink() {
             const hintsText = document.getElementById('hintsText').value.trim();
             const recipientName = window.hintRecipientName;
             const salt = window.hintSalt;
@@ -786,19 +857,16 @@
                 return;
             }
             
-            // FIX: Warn if hints are very long
-            if (hintsText.length > 1500) {
+            if (hintsText.length > 2000) {
                 if (!confirm('Your hints are very long and may create a URL that doesn\'t work in all browsers or apps. Continue anyway?')) {
                     return;
                 }
             }
             
             const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
-            
             const dataToEncrypt = 'VALID:' + hintsText;
-            const encryptedBytes = xorEncrypt(dataToEncrypt, hintPassword);
-            const encoded = encodeHints(encryptedBytes);
             
+            const encoded = await encodeHints(dataToEncrypt, hintPassword);
             const hintUrl = window.location.origin + window.location.pathname + '#hints-' + encoded;
             
             const display = document.getElementById('hintLinkDisplay');
@@ -822,14 +890,14 @@
             `;
         }
 
-        function showViewHints(encryptedBytes) {
+        function showViewHints(encryptedData) {
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('revealSection').style.display = 'none';
             document.getElementById('hintsSection').style.display = 'none';
             const viewHintsSection = document.getElementById('viewHintsSection');
             viewHintsSection.style.display = 'block';
             
-            window.currentEncryptedBytes = encryptedBytes;
+            window.currentEncryptedData = encryptedData;
             
             viewHintsSection.innerHTML = `
                 <h1>🎁 Secret Wishlist</h1>
@@ -852,9 +920,9 @@
             `;
         }
 
-        function tryDecodeHintsWithPassword() {
+        async function tryDecodeHintsWithPassword() {
             const enteredPassword = document.getElementById('passwordInput').value.trim().toLowerCase();
-            const encryptedBytes = window.currentEncryptedBytes;
+            const encryptedData = window.currentEncryptedData;
             
             if (!enteredPassword) {
                 alert('Please enter the password!');
@@ -868,24 +936,56 @@
             
             const decodedDiv = document.getElementById('decodedHints');
             
-            let decrypted = xorDecrypt(encryptedBytes, enteredPassword);
-            
-            // If 5 chars and doesn't work, try with '0' prefix
-            if (enteredPassword.length === 5 && (!decrypted || !decrypted.startsWith('VALID:'))) {
-                const paddedPassword = '0' + enteredPassword;
-                decrypted = xorDecrypt(encryptedBytes, paddedPassword);
-            }
-            
-            if (decrypted && decrypted.startsWith('VALID:')) {
-                const actualHints = decrypted.substring(6).trim();
-                // FIX: Escape HTML to prevent XSS
-                decodedDiv.innerHTML = `
-                    <div class="success">
-                        <h3>🎉 Success! Here's the wishlist:</h3>
-                        <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(actualHints)}</div>
-                    </div>
-                `;
-            } else {
+            try {
+                let decrypted = null;
+                
+                if (encryptedData.isLegacy) {
+                    // Legacy format: no compression header, direct XOR
+                    const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
+                    decrypted = bytesToUtf8(decryptedBytes);
+                    
+                    // Try padded password if needed
+                    if (!decrypted.startsWith('VALID:') && enteredPassword.length === 5) {
+                        const paddedPassword = '0' + enteredPassword;
+                        const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
+                        decrypted = bytesToUtf8(decryptedBytes2);
+                    }
+                } else {
+                    // New format: has compression header
+                    const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
+                    const decompressed = await decompressBytes(decryptedBytes);
+                    if (decompressed) {
+                        decrypted = bytesToUtf8(decompressed);
+                    }
+                    
+                    // Try padded password if needed
+                    if ((!decrypted || !decrypted.startsWith('VALID:')) && enteredPassword.length === 5) {
+                        const paddedPassword = '0' + enteredPassword;
+                        const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
+                        const decompressed2 = await decompressBytes(decryptedBytes2);
+                        if (decompressed2) {
+                            decrypted = bytesToUtf8(decompressed2);
+                        }
+                    }
+                }
+                
+                if (decrypted && decrypted.startsWith('VALID:')) {
+                    const actualHints = decrypted.substring(6).trim();
+                    decodedDiv.innerHTML = `
+                        <div class="success">
+                            <h3>🎉 Success! Here's the wishlist:</h3>
+                            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(actualHints)}</div>
+                        </div>
+                    `;
+                } else {
+                    decodedDiv.innerHTML = `
+                        <div class="error">
+                            ❌ Invalid password! Only the assigned Secret Santa has the correct password.
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Decryption error:', e);
                 decodedDiv.innerHTML = `
                     <div class="error">
                         ❌ Invalid password! Only the assigned Secret Santa has the correct password.
@@ -910,16 +1010,16 @@
             `;
         }
 
-        function checkForReveal() {
+        async function checkForReveal() {
             if (window.location.hash && window.location.hash.length > 1) {
                 const hash = window.location.hash.substring(1);
                 
                 if (hash.startsWith('hints-')) {
                     const encoded = hash.substring(6);
-                    const encryptedBytes = decodeHints(encoded);
+                    const encryptedData = await decodeHints(encoded);
                     
-                    if (encryptedBytes) {
-                        showViewHints(encryptedBytes);
+                    if (encryptedData) {
+                        showViewHints(encryptedData);
                     } else {
                         showError("Invalid hint link!");
                     }
