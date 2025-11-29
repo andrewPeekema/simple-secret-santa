@@ -218,6 +218,60 @@
         .create-hints-btn:hover {
             background: #40a9ff;
         }
+        .success-banner {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .how-it-works {
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .how-it-works summary {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a5568;
+            list-style: none;
+        }
+        .how-it-works summary::-webkit-details-marker {
+            display: none;
+        }
+        .how-it-works summary::before {
+            content: "▶";
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .how-it-works[open] summary::before {
+            transform: rotate(90deg);
+        }
+        .how-it-works-content {
+            padding: 15px;
+            background: white;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        .how-it-works-content ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .how-it-works-content li {
+            margin: 8px 0;
+        }
     </style>
 </head>
 <body>
@@ -226,6 +280,21 @@
         <p class="subtitle">People picking through practically private pairings</p>
         
         <div id="setupSection">
+            <details class="how-it-works">
+                <summary>How It Works</summary>
+                <div class="how-it-works-content">
+                    <ol>
+                        <li><strong>Generate pairings</strong> by entering participant names below</li>
+                        <li><strong>Share each link privately</strong> with the right person</li>
+                        <li><strong>Each person sees their assignment</strong> and gets a wishlist password</li>
+                        <li><strong>Wishlists are optional</strong>—if shared, only the right Santa can unlock them</li>
+                    </ol>
+                    <p style="margin: 15px 0 0 0; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #718096;">
+                        🔒 This site doesn't store or collect any data—everything runs locally in your browser.
+                    </p>
+                </div>
+            </details>
+
             <h3>Add Participants (minimum 3)</h3>
             <div id="peopleList">
                 <div class="person-input">
@@ -252,9 +321,10 @@
             </button>
             
             <div id="results" style="display: none;">
+                <div id="successBanner" class="success-banner"></div>
                 <h3>Share these links with each person:</h3>
                 <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                    Each person should click only their own link to see who they're giving to.
+                    Send each link privately to the right person.
                 </p>
                 <div id="linksList"></div>
                 <div class="warning">
@@ -746,7 +816,13 @@
             const linksList = document.getElementById('linksList');
             linksList.innerHTML = '';
 
-            Object.keys(assignments).forEach(person => {
+            const people = Object.keys(assignments);
+            
+            // Set success banner
+            const successBanner = document.getElementById('successBanner');
+            successBanner.textContent = `✓ ${people.length} links ready to share`;
+
+            people.forEach(person => {
                 const div = document.createElement('div');
                 div.className = 'link-item';
                 
@@ -756,7 +832,7 @@
                 const inputId = 'link-' + Math.random().toString(36).substring(2, 8);
                 
                 div.innerHTML = `
-                    <strong>${escapeHtml(person)}'s link (secret key: ${assignments[person].key})</strong>
+                    <strong>${escapeHtml(person)}'s link</strong>
                     <input type="text" value="${escapeHtml(url)}" readonly id="${inputId}">
                     <button class="copy-btn" onclick="copyToClipboard(document.getElementById('${inputId}').value, this)">Copy Link</button>
                 `;
@@ -764,7 +840,11 @@
                 linksList.appendChild(div);
             });
 
-            document.getElementById('results').style.display = 'block';
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            
+            // Auto-scroll to results
+            resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function revealAssignment(data) {
@@ -795,12 +875,11 @@
                     </div>
                 </div>
                 <p style="color: #666; margin-top: 30px; font-size: 14px;">
-                    Your secret key was: ${safeKey}<br>
                     Keep this assignment secret! 🤫
                 </p>
                 <div class="hints-box">
                     <h3>💭 Want to leave hints for your Secret Santa?</h3>
-                    <p style="font-size: 14px; color: #0050b3;">Create an anonymous wishlist that only YOUR Secret Santa can decode!</p>
+                    <p style="font-size: 14px; color: #0050b3;">Help your Secret Santa out with some ideas</p>
                     <button class="create-hints-btn" onclick="showCreateHints('${safeGiver.replace(/'/g, "\\'")}', '${safeSalt}')">
                         Create My Wishlist
                     </button>
@@ -824,12 +903,12 @@
                 <h1>🎁 Create Your Wishlist</h1>
                 <div class="hints-box">
                     <p style="color: #0050b3; margin-bottom: 20px;">
-                        Your wishlist will be encrypted so only YOUR Secret Santa can read it!
+                        Password-protected for your Secret Santa
                     </p>
                     <textarea id="hintsText" placeholder="Enter your gift hints, wishlist, preferences, sizes, favorite colors, etc..."></textarea>
                     <p id="hintLengthWarning" style="display: none; color: #c53030; font-size: 13px;"></p>
                     <button class="create-hints-btn" onclick="generateHintLink()">
-                        Generate Anonymous Hint Link
+                        Generate Hint Link
                     </button>
                 </div>
                 <div id="hintLinkDisplay" style="display: none;"></div>
