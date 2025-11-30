@@ -562,36 +562,58 @@
             return Math.abs(hash).toString(36);
         }
 
+        // CRC16-CCITT for hint validation (replaces VALID: prefix, saves 4 bytes)
+        function crc16(bytes) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < bytes.length; i++) {
+                crc ^= bytes[i] << 8;
+                for (let j = 0; j < 8; j++) {
+                    if (crc & 0x8000) {
+                        crc = (crc << 1) ^ 0x1021;
+                    } else {
+                        crc <<= 1;
+                    }
+                }
+            }
+            return crc & 0xFFFF;
+        }
+
         // ============================================
         // ENCODING FUNCTIONS
         // ============================================
 
         function encodeAssignment(data) {
-            const json = JSON.stringify(data);
-            const bytes = utf8ToBytes(json);
+            // Pipe-delimited format: giver|receiver|salt (key removed - was unused)
+            const compact = data.giver + '|' + data.receiver + '|' + data.salt;
+            const bytes = utf8ToBytes(compact);
             return bytesToUrlSafeBase64(bytes);
         }
 
         function decodeAssignment(encoded) {
-            // Try new compact JSON format
+            // Try pipe-delimited format first (new default)
+            try {
+                const bytes = urlSafeBase64ToBytes(encoded);
+                const decoded = bytesToUtf8(bytes);
+                if (decoded.includes('|') && !decoded.includes('{')) {
+                    const parts = decoded.split('|');
+                    if (parts.length === 3) {
+                        // New format: giver|receiver|salt
+                        return { giver: parts[0], receiver: parts[1], salt: parts[2] };
+                    }
+                    if (parts.length === 4) {
+                        // Old format: giver|receiver|key|salt (key is ignored)
+                        return { giver: parts[0], receiver: parts[1], salt: parts[3] };
+                    }
+                }
+            } catch (e) {}
+            
+            // Try JSON format (backward compatibility)
             try {
                 const bytes = urlSafeBase64ToBytes(encoded);
                 const json = bytesToUtf8(bytes);
                 const data = JSON.parse(json);
                 if (data.giver && data.receiver) {
                     return data;
-                }
-            } catch (e) {}
-            
-            // Try pipe-delimited format
-            try {
-                const bytes = urlSafeBase64ToBytes(encoded);
-                const decoded = bytesToUtf8(bytes);
-                if (decoded.includes('|') && !decoded.includes('{')) {
-                    const parts = decoded.split('|');
-                    if (parts.length === 4) {
-                        return { giver: parts[0], receiver: parts[1], key: parts[2], salt: parts[3] };
-                    }
                 }
             } catch (e) {}
             
@@ -618,7 +640,15 @@
 
         async function encodeHints(plaintext, password) {
             const plaintextBytes = utf8ToBytes(plaintext);
-            const compressed = await compressBytes(plaintextBytes);
+            
+            // Prepend 2-byte CRC16 checksum for validation (replaces VALID: prefix)
+            const checksum = crc16(plaintextBytes);
+            const withChecksum = new Uint8Array(plaintextBytes.length + 2);
+            withChecksum[0] = (checksum >> 8) & 0xFF;  // High byte
+            withChecksum[1] = checksum & 0xFF;         // Low byte
+            withChecksum.set(plaintextBytes, 2);
+            
+            const compressed = await compressBytes(withChecksum);
             const encrypted = xorEncrypt(compressed, password);
             return bytesToUrlSafeBase64(encrypted);
         }
@@ -797,15 +827,12 @@
 
             const assignments = {};
             for (let i = 0; i < givers.length; i++) {
-                const key = Math.random().toString(36).substring(2, 8);
                 const data = {
                     giver: givers[i],
                     receiver: receivers[i],
-                    key: key,
                     salt: sessionSalt
                 };
                 assignments[givers[i]] = {
-                    key: key,
                     encoded: encodeAssignment(data)
                 };
             }
@@ -875,7 +902,6 @@
             
             const safeGiver = escapeHtml(data.giver);
             const safeReceiver = escapeHtml(data.receiver);
-            const safeKey = escapeHtml(data.key);
             const safeSalt = escapeHtml(data.salt || sessionSalt);
             
             revealSection.innerHTML = `
@@ -960,10 +986,9 @@
             }
             
             const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
-            const dataToEncrypt = 'VALID:' + hintsText;
             
-            const encoded = await encodeHints(dataToEncrypt, hintPassword);
-            const hintUrl = window.location.origin + window.location.pathname + '#hints-' + encoded;
+            const encoded = await encodeHints(hintsText, hintPassword);
+            const hintUrl = window.location.origin + window.location.pathname + '#h-' + encoded;
             
             const display = document.getElementById('hintLinkDisplay');
             display.style.display = 'block';
@@ -1032,45 +1057,68 @@
             
             const decodedDiv = document.getElementById('decodedHints');
             
+            // Helper function to validate and extract hints from decrypted bytes
+            function validateHints(bytes) {
+                if (!bytes || bytes.length < 3) return null;
+                
+                // Try CRC16 validation (new format): first 2 bytes are checksum
+                const storedCrc = (bytes[0] << 8) | bytes[1];
+                const payload = bytes.slice(2);
+                const calculatedCrc = crc16(payload);
+                
+                if (storedCrc === calculatedCrc) {
+                    return bytesToUtf8(payload);
+                }
+                
+                // Try VALID: prefix (backward compatibility)
+                try {
+                    const text = bytesToUtf8(bytes);
+                    if (text.startsWith('VALID:')) {
+                        return text.substring(6);
+                    }
+                } catch (e) {}
+                
+                return null;
+            }
+            
             try {
-                let decrypted = null;
+                let hints = null;
                 
                 if (encryptedData.isLegacy) {
-                    // Legacy format: no compression header, direct XOR
+                    // Legacy format: no compression header, direct XOR, uses VALID: prefix
                     const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
-                    decrypted = bytesToUtf8(decryptedBytes);
+                    hints = validateHints(decryptedBytes);
                     
                     // Try padded password if needed
-                    if (!decrypted.startsWith('VALID:') && enteredPassword.length === 5) {
+                    if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
                         const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
-                        decrypted = bytesToUtf8(decryptedBytes2);
+                        hints = validateHints(decryptedBytes2);
                     }
                 } else {
                     // New format: has compression header
                     const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
                     const decompressed = await decompressBytes(decryptedBytes);
                     if (decompressed) {
-                        decrypted = bytesToUtf8(decompressed);
+                        hints = validateHints(decompressed);
                     }
                     
                     // Try padded password if needed
-                    if ((!decrypted || !decrypted.startsWith('VALID:')) && enteredPassword.length === 5) {
+                    if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
                         const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
                         const decompressed2 = await decompressBytes(decryptedBytes2);
                         if (decompressed2) {
-                            decrypted = bytesToUtf8(decompressed2);
+                            hints = validateHints(decompressed2);
                         }
                     }
                 }
                 
-                if (decrypted && decrypted.startsWith('VALID:')) {
-                    const actualHints = decrypted.substring(6).trim();
+                if (hints) {
                     decodedDiv.innerHTML = `
                         <div class="success">
                             <h3>🎉 Success! Here's the wishlist:</h3>
-                            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(actualHints)}</div>
+                            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(hints.trim())}</div>
                         </div>
                     `;
                 } else {
@@ -1110,7 +1158,18 @@
             if (window.location.hash && window.location.hash.length > 1) {
                 const hash = window.location.hash.substring(1);
                 
-                if (hash.startsWith('hints-')) {
+                // Handle hint links (new #h- and legacy #hints-)
+                if (hash.startsWith('h-')) {
+                    const encoded = hash.substring(2);
+                    const encryptedData = await decodeHints(encoded);
+                    
+                    if (encryptedData) {
+                        showViewHints(encryptedData);
+                    } else {
+                        showError("Invalid hint link!");
+                    }
+                } else if (hash.startsWith('hints-')) {
+                    // Legacy format backward compatibility
                     const encoded = hash.substring(6);
                     const encryptedData = await decodeHints(encoded);
                     
