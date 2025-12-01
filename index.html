@@ -263,7 +263,14 @@
 
         #revealSection, #hintsSection, #viewHintsSection {
             text-align: center;
-            padding: 12px 0;
+            padding: 32px 28px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            box-shadow: 
+                0 0 60px -20px rgba(58, 154, 92, 0.15),
+                0 0 60px -20px rgba(232, 200, 122, 0.12),
+                0 0 60px -20px rgba(212, 133, 154, 0.1);
         }
 
         .reveal-box {
@@ -585,7 +592,7 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="mainContainer">
         <div class="title-stars">
             <span class="star-gold">✦</span>
             <span class="star-ice">✦</span>
@@ -1210,6 +1217,7 @@
         }
 
         function revealAssignment(data) {
+            document.getElementById('mainContainer').style.display = 'none';
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('hintsSection').style.display = 'none';
             document.getElementById('viewHintsSection').style.display = 'none';
@@ -1223,6 +1231,13 @@
             const safeSalt = escapeHtml(data.salt || sessionSalt);
             
             revealSection.innerHTML = `
+                <div class="title-stars">
+                    <span class="star-gold">✦</span>
+                    <span class="star-ice">✦</span>
+                    <span class="star-green">✦</span>
+                    <span class="star-silver">✦</span>
+                    <span class="star-red">✦</span>
+                </div>
                 <h1>Your Assignment</h1>
                 <div class="reveal-box">
                     <h2>Hello, ${safeGiver}</h2>
@@ -1253,6 +1268,7 @@
         }
 
         function showCreateHints(recipientName, salt) {
+            document.getElementById('mainContainer').style.display = 'none';
             document.getElementById('revealSection').style.display = 'none';
             document.getElementById('viewHintsSection').style.display = 'none';
             const hintsSection = document.getElementById('hintsSection');
@@ -1262,6 +1278,13 @@
             window.hintSalt = salt;
             
             hintsSection.innerHTML = `
+                <div class="title-stars">
+                    <span class="star-gold">✦</span>
+                    <span class="star-ice">✦</span>
+                    <span class="star-green">✦</span>
+                    <span class="star-silver">✦</span>
+                    <span class="star-red">✦</span>
+                </div>
                 <h1>Your Wishlist</h1>
                 <div class="hints-box">
                     <p style="margin-bottom: 14px; font-size: 13px;">
@@ -1328,6 +1351,7 @@
         }
 
         function showViewHints(encryptedData) {
+            document.getElementById('mainContainer').style.display = 'none';
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('revealSection').style.display = 'none';
             document.getElementById('hintsSection').style.display = 'none';
@@ -1337,6 +1361,13 @@
             window.currentEncryptedData = encryptedData;
             
             viewHintsSection.innerHTML = `
+                <div class="title-stars">
+                    <span class="star-gold">✦</span>
+                    <span class="star-ice">✦</span>
+                    <span class="star-green">✦</span>
+                    <span class="star-silver">✦</span>
+                    <span class="star-red">✦</span>
+                </div>
                 <h1>Wishlist</h1>
                 <div class="hints-box">
                     <p style="margin-bottom: 14px; font-size: 13px;">
@@ -1455,6 +1486,7 @@
         }
 
         function showError(message) {
+            document.getElementById('mainContainer').style.display = 'none';
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('hintsSection').style.display = 'none';
             document.getElementById('viewHintsSection').style.display = 'none';
@@ -1462,6 +1494,13 @@
             revealSection.style.display = 'block';
             
             revealSection.innerHTML = `
+                <div class="title-stars">
+                    <span class="star-gold">✦</span>
+                    <span class="star-ice">✦</span>
+                    <span class="star-green">✦</span>
+                    <span class="star-silver">✦</span>
+                    <span class="star-red">✦</span>
+                </div>
                 <h1>Invalid Link</h1>
                 <div class="error">${escapeHtml(message)}</div>
                 <button onclick="location.href=location.pathname" style="margin-top: 24px;">
