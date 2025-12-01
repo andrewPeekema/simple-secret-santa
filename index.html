@@ -4,279 +4,577 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secret Santa Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #222222;
+            --bg-elevated: #282828;
+            --text-primary: #f5f5f4;
+            --text-secondary: #a8a8a6;
+            --text-muted: #6b6b69;
+            --green: #3a9a5c;
+            --green-light: #4db870;
+            --green-dark: #2d7a48;
+            --green-subtle: rgba(58, 154, 92, 0.12);
+            --green-border: rgba(58, 154, 92, 0.4);
+            --red: #c54545;
+            --red-light: #d46a6a;
+            --red-subtle: rgba(197, 69, 69, 0.12);
+            --red-border: rgba(197, 69, 69, 0.4);
+            --success: #3a9a5c;
+            --success-bg: rgba(58, 154, 92, 0.12);
+            --error: #c54545;
+            --error-bg: rgba(197, 69, 69, 0.1);
+            --warning: #c54545;
+            --warning-bg: rgba(197, 69, 69, 0.1);
+            --warning-border: rgba(197, 69, 69, 0.4);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-light: rgba(255, 255, 255, 0.12);
+            --font-serif: 'Libre Baskerville', Georgia, serif;
+            --font-sans: 'DM Sans', -apple-system, sans-serif;
         }
-        .container {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        input, button, select, textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
+
+        * {
             box-sizing: border-box;
         }
+
+        body {
+            font-family: var(--font-sans);
+            max-width: 580px;
+            margin: 0 auto;
+            padding: 24px 16px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 32px 28px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: 1.9rem;
+            color: var(--text-primary);
+            text-align: center;
+            margin: 0 0 4px 0;
+            letter-spacing: -0.01em;
+        }
+
+        h1::before {
+            content: "✦";
+            display: block;
+            color: var(--green);
+            font-size: 1rem;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        h3 {
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            margin: 20px 0 10px 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            font-style: italic;
+            font-family: var(--font-serif);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 4px 0;
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--green-border);
+            background: var(--bg-elevated);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: var(--text-muted);
+        }
+
         textarea {
             min-height: 100px;
             resize: vertical;
-            font-family: inherit;
+            line-height: 1.5;
         }
+
         button {
-            background: #667eea;
-            color: white;
-            border: none;
+            width: 100%;
+            padding: 10px 20px;
+            margin: 6px 0;
+            border: 1px solid var(--green-dark);
+            border-radius: 2px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: transparent;
+            color: var(--green);
             cursor: pointer;
-            font-weight: 600;
+            transition: all 0.25s ease;
         }
+
         button:hover {
-            background: #5a67d8;
+            background: var(--green);
+            color: var(--bg-primary);
+            transform: translateY(-1px);
         }
+
+        button:active {
+            transform: translateY(0);
+        }
+
         .person-input {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
+            margin: 3px 0;
         }
+
         .person-input input {
             flex: 1;
         }
+
         .remove-btn {
             width: auto;
-            padding: 8px 16px;
-            background: #e53e3e;
+            padding: 8px 14px;
+            border-color: var(--red);
+            color: var(--red);
+            font-size: 12px;
         }
+
         .remove-btn:hover {
-            background: #c53030;
+            background: var(--red);
+            color: var(--text-primary);
         }
+
+        .remove-exclusion-btn {
+            border-color: var(--red) !important;
+            color: var(--red) !important;
+        }
+
+        .remove-exclusion-btn:hover {
+            background: var(--red) !important;
+            color: var(--text-primary) !important;
+        }
+
         #results {
-            margin-top: 30px;
+            margin-top: 24px;
             padding: 20px;
-            background: #f7fafc;
-            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            animation: slideUp 0.4s ease-out;
         }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .link-item {
-            margin: 15px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            margin: 12px 0;
+            padding: 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            animation: fadeIn 0.4s ease-out;
+            animation-fill-mode: both;
         }
+
+        .link-item:nth-child(1) { animation-delay: 0.1s; }
+        .link-item:nth-child(2) { animation-delay: 0.15s; }
+        .link-item:nth-child(3) { animation-delay: 0.2s; }
+        .link-item:nth-child(4) { animation-delay: 0.25s; }
+        .link-item:nth-child(5) { animation-delay: 0.3s; }
+
         .link-item strong {
             display: block;
             margin-bottom: 8px;
-            color: #2d3748;
+            color: var(--green-light);
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: 1rem;
         }
+
         .link-item input {
-            font-family: monospace;
-            font-size: 13px;
-            background: #f7fafc;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 8px 10px;
         }
+
         .copy-btn {
             width: auto;
-            padding: 8px 20px;
+            padding: 8px 16px;
             margin-top: 8px;
-            background: #48bb78;
-            font-size: 14px;
+            border-color: var(--green);
+            color: var(--green);
+            font-size: 11px;
         }
+
         .copy-btn:hover {
-            background: #38a169;
+            background: var(--green);
+            color: var(--text-primary);
         }
+
         #revealSection, #hintsSection, #viewHintsSection {
             text-align: center;
-            padding: 40px 20px;
+            padding: 12px 0;
         }
+
         .reveal-box {
-            background: #f0fff4;
-            border: 2px solid #48bb78;
-            border-radius: 8px;
-            padding: 30px;
+            background: var(--green-subtle);
+            border: 1px solid var(--green-border);
+            border-radius: 2px;
+            padding: 28px 24px;
             margin: 20px 0;
         }
+
         .reveal-box h2 {
-            color: #22543d;
-            margin: 0 0 10px 0;
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            margin: 0 0 4px 0;
         }
+
         .reveal-name {
-            font-size: 28px;
-            color: #276749;
-            font-weight: bold;
+            font-family: var(--font-serif);
+            font-size: 1.8rem;
+            color: var(--red-light);
+            font-weight: 700;
+            margin: 16px 0;
         }
+
         .error {
-            background: #fed7d7;
-            color: #c53030;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
+            background: var(--error-bg);
+            color: var(--error);
+            padding: 12px 16px;
+            border: 1px solid var(--red-border);
+            border-radius: 2px;
+            margin: 12px 0;
+            font-size: 13px;
         }
+
         .warning {
-            background: #fef5e7;
-            color: #7c4700;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 20px 0;
-            font-size: 14px;
+            background: var(--warning-bg);
+            color: var(--red-light);
+            padding: 12px 16px;
+            border: 1px solid var(--warning-border);
+            border-radius: 2px;
+            margin: 16px 0;
+            font-size: 12px;
+            line-height: 1.4;
         }
+
         .exclusions-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            margin-top: 24px;
+            padding: 18px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 2px;
         }
+
         .exclusions-section h3 {
-            margin-top: 0;
-            color: #495057;
+            margin: 0 0 4px 0;
+            font-size: 1rem;
         }
+
         .exclusion-row {
             display: flex;
-            gap: 10px;
-            margin: 10px 0;
+            gap: 8px;
+            margin: 8px 0;
             align-items: center;
         }
+
         .exclusion-row select {
             flex: 1;
         }
+
         .exclusion-row .remove-exclusion-btn {
             width: auto;
-            padding: 8px 16px;
-            background: #e53e3e;
+            padding: 8px 12px;
         }
+
         .add-exclusion-btn {
-            background: #4299e1;
+            border-color: var(--green);
+            color: var(--green);
             margin-top: 10px;
         }
+
         .add-exclusion-btn:hover {
-            background: #3182ce;
+            border-color: var(--green);
+            background: var(--green);
+            color: var(--bg-primary);
         }
+
         .arrow {
-            padding: 0 10px;
-            color: #718096;
-            font-size: 20px;
+            color: var(--text-muted);
+            font-size: 16px;
+            padding: 0 2px;
         }
+
         .help-text {
-            color: #718096;
-            font-size: 13px;
-            margin: 5px 0;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin: 2px 0 10px 0;
         }
+
         .hints-box {
-            background: #e6f7ff;
-            border: 2px solid #1890ff;
-            border-radius: 8px;
+            background: var(--green-subtle);
+            border: 1px solid var(--green-border);
+            border-radius: 2px;
             padding: 20px;
             margin: 20px 0;
         }
+
         .hints-box h3 {
-            color: #0050b3;
-            margin-top: 0;
+            color: var(--green-light);
+            margin: 0 0 4px 0;
         }
+
+        .hints-box p {
+            color: var(--text-secondary);
+        }
+
         .hint-link-display {
-            background: #f0f5ff;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 15px 0;
+            background: var(--bg-tertiary);
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            margin: 14px 0;
         }
+
+        .hint-link-display h3 {
+            color: var(--green);
+            font-family: var(--font-serif);
+            margin: 0 0 4px 0;
+        }
+
         .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
+            background: var(--success-bg);
+            color: var(--text-primary);
+            padding: 18px;
+            border: 1px solid var(--green-border);
+            border-radius: 2px;
+            margin: 12px 0;
         }
+
+        .success h3 {
+            color: var(--green);
+            margin: 0 0 12px 0;
+        }
+
+        .success div {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-secondary) !important;
+            border: 1px solid var(--border);
+        }
+
         .info-box {
-            background: #e8f4f8;
-            color: #0c5460;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
-            font-size: 14px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            margin: 12px 0;
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: left;
         }
+
         .create-hints-btn {
-            background: #1890ff;
-            margin-top: 15px;
+            border-color: var(--green);
+            color: var(--green);
+            margin-top: 14px;
         }
+
         .create-hints-btn:hover {
-            background: #40a9ff;
+            background: var(--green);
+            color: var(--bg-primary);
         }
+
         .success-banner {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-weight: 600;
-            animation: fadeIn 0.3s ease-in;
+            background: var(--success-bg);
+            border: 1px solid var(--green-border);
+            color: var(--green);
+            padding: 12px 16px;
+            border-radius: 2px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            animation: fadeIn 0.4s ease-out;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
+            from { opacity: 0; transform: translateY(-6px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
         .how-it-works {
-            margin-bottom: 25px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
             overflow: hidden;
         }
+
         .how-it-works summary {
-            padding: 12px 15px;
-            background: #f8f9fa;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
             cursor: pointer;
-            font-weight: 600;
-            color: #4a5568;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
             list-style: none;
+            transition: color 0.2s ease;
         }
+
+        .how-it-works summary:hover {
+            color: var(--text-primary);
+        }
+
         .how-it-works summary::-webkit-details-marker {
             display: none;
         }
+
         .how-it-works summary::before {
-            content: "▶";
+            content: "✦";
             display: inline-block;
             margin-right: 8px;
-            font-size: 12px;
-            transition: transform 0.2s;
+            font-size: 9px;
+            color: var(--green);
+            transition: transform 0.3s ease;
         }
+
         .how-it-works[open] summary::before {
             transform: rotate(90deg);
         }
+
         .how-it-works-content {
-            padding: 15px;
-            background: white;
-            font-size: 14px;
-            color: #4a5568;
+            padding: 16px;
+            background: var(--bg-secondary);
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
         }
+
         .how-it-works-content ol {
             margin: 0;
-            padding-left: 20px;
+            padding-left: 18px;
         }
+
         .how-it-works-content li {
             margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .how-it-works-content strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .how-it-works-content p {
+            margin: 14px 0 0 0;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Password display box */
+        div[style*="background: var(--bg-tertiary)"] strong {
+            color: var(--green-light) !important;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Selection */
+        ::selection {
+            background: var(--green);
+            color: var(--bg-primary);
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            body {
+                padding: 12px 8px;
+            }
+            
+            .container {
+                padding: 24px 18px;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .exclusion-row {
+                flex-wrap: wrap;
+            }
+
+            .exclusion-row select {
+                min-width: 100%;
+            }
+
+            .arrow {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎅 Secret Santa Generator</h1>
+        <h1>Simple Secret Santa</h1>
         <p class="subtitle">People picking through practically private pairings</p>
         
         <div id="setupSection">
@@ -289,13 +587,13 @@
                         <li><strong>Each person sees their assignment</strong> and gets a wishlist password</li>
                         <li><strong>Wishlists are optional</strong>—if shared, only the right Santa can unlock them</li>
                     </ol>
-                    <p style="margin: 15px 0 0 0; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #718096;">
-                        🔒 This site doesn't store or collect any data—everything runs locally in your browser.
+                    <p>
+                        This site doesn't store or collect any data—everything runs locally in your browser.
                     </p>
                 </div>
             </details>
 
-            <h3>Add Participants (minimum 3)</h3>
+            <h3>Participants</h3>
             <div id="peopleList">
                 <div class="person-input">
                     <input type="text" placeholder="Enter name" class="person-name">
@@ -310,26 +608,27 @@
             <button onclick="addPerson()">+ Add Person</button>
             
             <div class="exclusions-section">
-                <h3>🚫 Exclusions (Optional)</h3>
-                <p class="help-text">Prevent certain people from getting each other (e.g., couples, siblings)</p>
+                <h3>Exclusions <span style="font-weight: 400; color: var(--text-muted); font-size: 0.8em;">(Optional)</span></h3>
+                <p class="help-text">Prevent certain pairings (couples, family members, etc.)</p>
                 <div id="exclusionsList"></div>
-                <button class="add-exclusion-btn" onclick="addExclusion()">+ Add Exclusion Rule</button>
+                <button class="add-exclusion-btn" onclick="addExclusion()">+ Add Exclusion</button>
             </div>
             
-            <button onclick="generateSecretSanta()" style="background: #48bb78; margin-top: 20px;">
-                🎁 Generate Secret Santa
+            <button onclick="generateSecretSanta()" style="margin-top: 20px; border-color: var(--green); color: var(--green);">
+                Generate Pairings
             </button>
             
             <div id="results" style="display: none;">
                 <div id="successBanner" class="success-banner"></div>
-                <h3>Share these links with each person:</h3>
-                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                    Send each link privately to the right person.
+                <h3>Distribution Links</h3>
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+                    Send each link privately to the corresponding person.
                 </p>
-                <button id="copyAllBtn" class="copy-btn" style="width: 100%; margin-bottom: 15px; background: #667eea;" onclick="copyAllLinks()">Copy All Links</button>
+                <button id="copyAllBtn" class="copy-btn" style="width: 100%; margin-bottom: 20px;" onclick="copyAllLinks()">Copy All Links</button>
                 <div id="linksList"></div>
                 <div class="warning">
-                    ⚠️ Save these links! Once you leave this page, they cannot be regenerated with the same pairings.
+                    Save these links. Once you leave this page, these specific pairings cannot be recreated.
+                </div>
                 </div>
             </div>
         </div>
@@ -905,30 +1204,31 @@
             const safeSalt = escapeHtml(data.salt || sessionSalt);
             
             revealSection.innerHTML = `
-                <h1>🎄 Secret Santa Assignment</h1>
+                <h1>Your Assignment</h1>
                 <div class="reveal-box">
-                    <h2>Hello, ${safeGiver}!</h2>
-                    <p style="font-size: 18px; margin: 20px 0;">You are giving a gift to:</p>
-                    <div class="reveal-name">🎁 ${safeReceiver}</div>
-                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin-top: 20px; border: 2px solid #ffc107;">
-                        <strong>🔑 ${safeReceiver}'s Hint Password: <span style="font-family: monospace; font-size: 20px; color: #d63384;">${hintPassword}</span></strong>
-                        <p style="font-size: 13px; color: #856404; margin: 8px 0 0 0;">
-                            Save this! You'll need it to decode ${safeReceiver}'s wishlist hints if they share any.
+                    <h2>Hello, ${safeGiver}</h2>
+                    <p style="font-size: 15px; margin: 16px 0 4px 0; color: var(--text-secondary);">You are giving a gift to</p>
+                    <div class="reveal-name">${safeReceiver}</div>
+                    <div style="background: var(--bg-tertiary); padding: 16px; border-radius: 2px; margin-top: 20px; border: 1px solid var(--border);">
+                        <p style="color: var(--text-secondary); font-size: 11px; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.05em;">Wishlist Password</p>
+                        <strong style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 1.3rem; color: var(--green-light); letter-spacing: 0.1em;">${hintPassword}</strong>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 10px 0 0 0;">
+                            Save this—you'll need it to decode ${safeReceiver}'s wishlist if they share one.
                         </p>
                     </div>
                 </div>
-                <p style="color: #666; margin-top: 30px; font-size: 14px;">
-                    Keep this assignment secret! 🤫
+                <p style="color: var(--text-muted); margin-top: 20px; font-size: 13px; font-style: italic;">
+                    Keep this assignment to yourself.
                 </p>
                 <div class="hints-box">
-                    <h3>💭 Want to leave hints for your Secret Santa?</h3>
-                    <p style="font-size: 14px; color: #0050b3;">Help your Secret Santa out with some ideas</p>
+                    <h3>Create Your Wishlist</h3>
+                    <p style="font-size: 13px;">Share hints with your Secret Santa</p>
                     <button class="create-hints-btn" onclick="showCreateHints('${safeGiver.replace(/'/g, "\\'")}', '${safeSalt}')">
-                        Create My Wishlist
+                        Create Wishlist
                     </button>
                 </div>
-                <button onclick="location.href=location.pathname" style="margin-top: 20px; background: #667eea;">
-                    Create New Secret Santa
+                <button onclick="location.href=location.pathname" style="margin-top: 16px;">
+                    Start New Exchange
                 </button>
             `;
         }
@@ -943,15 +1243,15 @@
             window.hintSalt = salt;
             
             hintsSection.innerHTML = `
-                <h1>🎁 Create Your Wishlist</h1>
+                <h1>Your Wishlist</h1>
                 <div class="hints-box">
-                    <p style="color: #0050b3; margin-bottom: 20px;">
-                        Password-protected for your Secret Santa
+                    <p style="margin-bottom: 14px; font-size: 13px;">
+                        Only your Secret Santa can decode this.
                     </p>
-                    <textarea id="hintsText" placeholder="Enter your gift hints, wishlist, preferences, sizes, favorite colors, etc..."></textarea>
-                    <p id="hintLengthWarning" style="display: none; color: #c53030; font-size: 13px;"></p>
+                    <textarea id="hintsText" placeholder="Gift ideas, preferences, sizes, favorite things..."></textarea>
+                    <p id="hintLengthWarning" style="display: none; color: var(--error); font-size: 12px;"></p>
                     <button class="create-hints-btn" onclick="generateHintLink()">
-                        Generate Hint Link
+                        Generate Link
                     </button>
                 </div>
                 <div id="hintLinkDisplay" style="display: none;"></div>
@@ -962,7 +1262,7 @@
                 const warning = document.getElementById('hintLengthWarning');
                 if (length > 1500) {
                     warning.style.display = 'block';
-                    warning.textContent = `⚠️ Your hints are ${length} characters. Very long hints may create URLs that don't work in all browsers.`;
+                    warning.textContent = `Note: ${length} characters may create a long URL.`;
                 } else {
                     warning.style.display = 'none';
                 }
@@ -994,18 +1294,15 @@
             display.style.display = 'block';
             display.innerHTML = `
                 <div class="hint-link-display">
-                    <h3>✅ Your hint link is ready!</h3>
-                    <p style="color: #666; font-size: 14px; margin: 15px 0;">
-                        Share this link with your Secret Santa group. Only the person who has YOU can decode it!
+                    <h3>Link Ready</h3>
+                    <p style="font-size: 13px; margin: 10px 0;">
+                        Share this with your group. Only your Secret Santa can decode it.
                     </p>
-                    <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 10px;">
-                    <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Hint Link</button>
-                    <div class="info-box" style="margin-top: 20px;">
-                        <strong>How it works:</strong><br>
-                        • Anyone can click this link<br>
-                        • They'll need to enter a 6-character password<br>
-                        • Only YOUR Secret Santa has the correct password<br>
-                        • Others will see "Invalid password!"
+                    <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 6px;">
+                    <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Link</button>
+                    <div class="info-box" style="margin-top: 14px;">
+                        <strong style="color: var(--text-primary);">How it works</strong><br><br>
+                        Anyone can open this link, but only your assigned Santa has the password to decode it.
                     </div>
                 </div>
             `;
@@ -1021,22 +1318,22 @@
             window.currentEncryptedData = encryptedData;
             
             viewHintsSection.innerHTML = `
-                <h1>🎁 Secret Wishlist</h1>
+                <h1>Wishlist</h1>
                 <div class="hints-box">
-                    <p style="color: #0050b3; margin-bottom: 20px;">
-                        This wishlist is password-protected. Enter the password to decode it.
+                    <p style="margin-bottom: 14px; font-size: 13px;">
+                        Enter the password to decode this wishlist.
                     </p>
-                    <input type="text" id="passwordInput" placeholder="Enter password (5-6 characters)" maxlength="6" style="text-transform: lowercase; font-family: monospace; font-size: 18px; text-align: center;">
-                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
-                        Hint: Only the assigned Secret Santa has this password
+                    <input type="text" id="passwordInput" placeholder="Password" maxlength="6" style="text-transform: lowercase; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 1.1rem; text-align: center; letter-spacing: 0.15em;">
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                        Only the assigned Secret Santa has this password
                     </p>
                     <button class="create-hints-btn" onclick="tryDecodeHintsWithPassword()">
-                        Decode Hints
+                        Decode
                     </button>
                 </div>
-                <div id="decodedHints" style="margin-top: 20px;"></div>
-                <button onclick="location.href=location.pathname" style="margin-top: 20px; background: #667eea;">
-                    Back to Secret Santa
+                <div id="decodedHints" style="margin-top: 16px;"></div>
+                <button onclick="location.href=location.pathname" style="margin-top: 16px;">
+                    Back
                 </button>
             `;
         }
@@ -1117,14 +1414,14 @@
                 if (hints) {
                     decodedDiv.innerHTML = `
                         <div class="success">
-                            <h3>🎉 Success! Here's the wishlist:</h3>
-                            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; white-space: pre-wrap;">${escapeHtml(hints.trim())}</div>
+                            <h3>Wishlist Decoded</h3>
+                            <div style="background: var(--bg-tertiary); padding: 14px; border-radius: 2px; margin-top: 10px; text-align: left; white-space: pre-wrap; border: 1px solid var(--border); color: var(--text-secondary); line-height: 1.6; font-size: 13px;">${escapeHtml(hints.trim())}</div>
                         </div>
                     `;
                 } else {
                     decodedDiv.innerHTML = `
                         <div class="error">
-                            ❌ Invalid password! Only the assigned Secret Santa has the correct password.
+                            Invalid password. Only the assigned Secret Santa has the correct password.
                         </div>
                     `;
                 }
@@ -1132,7 +1429,7 @@
                 console.error('Decryption error:', e);
                 decodedDiv.innerHTML = `
                     <div class="error">
-                        ❌ Invalid password! Only the assigned Secret Santa has the correct password.
+                        Invalid password. Only the assigned Secret Santa has the correct password.
                     </div>
                 `;
             }
@@ -1146,10 +1443,10 @@
             revealSection.style.display = 'block';
             
             revealSection.innerHTML = `
-                <h1>❌ Oops!</h1>
+                <h1>Invalid Link</h1>
                 <div class="error">${escapeHtml(message)}</div>
-                <button onclick="location.href=location.pathname" style="margin-top: 20px;">
-                    Create New Secret Santa
+                <button onclick="location.href=location.pathname" style="margin-top: 24px;">
+                    Start New Exchange
                 </button>
             `;
         }
