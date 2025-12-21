@@ -887,6 +887,34 @@
             return Math.abs(hash).toString(36);
         }
 
+        // Validate participant names to prevent encoding issues
+        // Allows: Unicode letters, numbers, spaces, apostrophes, hyphens, periods
+        // Disallows: & < > and control characters (which cause HTML escaping mismatches)
+        function isValidName(name) {
+            if (!name || name.length === 0 || name.length > 50) return false;
+            
+            // Disallow characters that cause HTML escaping issues or security concerns
+            const disallowed = /[&<>\x00-\x1F\x7F]/;
+            if (disallowed.test(name)) return false;
+            
+            // Must contain at least one letter or number
+            const hasAlphanumeric = /[\p{L}\p{N}]/u;
+            if (!hasAlphanumeric.test(name)) return false;
+            
+            return true;
+        }
+
+        function getInvalidNameReason(name) {
+            if (!name || name.length === 0) return "Name cannot be empty";
+            if (name.length > 50) return "Name must be 50 characters or less";
+            if (/[&]/.test(name)) return "Name cannot contain '&'";
+            if (/[<]/.test(name)) return "Name cannot contain '<'";
+            if (/[>]/.test(name)) return "Name cannot contain '>'";
+            if (/[\x00-\x1F\x7F]/.test(name)) return "Name contains invalid control characters";
+            if (!/[\p{L}\p{N}]/u.test(name)) return "Name must contain at least one letter or number";
+            return null;
+        }
+
         // CRC16-CCITT for hint validation (replaces VALID: prefix, saves 4 bytes)
         function crc16(bytes) {
             let crc = 0xFFFF;
@@ -1110,6 +1138,15 @@
                 return;
             }
 
+            // Validate all names for allowed characters
+            for (const name of people) {
+                if (!isValidName(name)) {
+                    const reason = getInvalidNameReason(name);
+                    alert(`Invalid name "${name}": ${reason}\n\nNames can contain letters, numbers, spaces, apostrophes, hyphens, and periods.`);
+                    return;
+                }
+            }
+
             // Check for case-insensitive duplicates
             const lowerCaseNames = people.map(n => n.toLowerCase());
             const lowerCaseSet = new Set(lowerCaseNames);
@@ -1230,6 +1267,12 @@
             const safeReceiver = escapeHtml(data.receiver);
             const safeSalt = escapeHtml(data.salt || sessionSalt);
             
+            // Store raw values for wishlist creation to ensure password consistency
+            window.revealData = {
+                giver: data.giver,
+                salt: data.salt || sessionSalt
+            };
+            
             revealSection.innerHTML = `
                 <div class="title-stars">
                     <span class="star-gold">✦</span>
@@ -1257,7 +1300,7 @@
                 <div class="hints-box">
                     <h3>Create Your Wishlist</h3>
                     <p style="font-size: 13px;">Share hints with your Secret Santa</p>
-                    <button class="create-hints-btn" onclick="showCreateHints('${safeGiver.replace(/'/g, "\\'")}', '${safeSalt}')">
+                    <button class="create-hints-btn" onclick="showCreateHints(window.revealData.giver, window.revealData.salt)">
                         Create Wishlist
                     </button>
                 </div>
@@ -1436,11 +1479,21 @@
                     const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
                     hints = validateHints(decryptedBytes);
                     
-                    // Try padded password if needed
+                    // Try padded password if needed (user omitted a leading zero)
                     if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
                         const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
                         hints = validateHints(decryptedBytes2);
+                    }
+                    
+                    // Try removing leading zeros (old wishlists encrypted without padStart)
+                    if (!hints && enteredPassword.startsWith('0')) {
+                        let stripped = enteredPassword;
+                        while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
+                            stripped = stripped.substring(1);
+                            const decryptedBytes3 = xorDecrypt(encryptedData.bytes, stripped);
+                            hints = validateHints(decryptedBytes3);
+                        }
                     }
                 } else {
                     // New format: has compression header
@@ -1450,13 +1503,26 @@
                         hints = validateHints(decompressed);
                     }
                     
-                    // Try padded password if needed
+                    // Try padded password if needed (user omitted a leading zero)
                     if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
                         const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
                         const decompressed2 = await decompressBytes(decryptedBytes2);
                         if (decompressed2) {
                             hints = validateHints(decompressed2);
+                        }
+                    }
+                    
+                    // Try removing leading zeros (old wishlists encrypted without padStart)
+                    if (!hints && enteredPassword.startsWith('0')) {
+                        let stripped = enteredPassword;
+                        while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
+                            stripped = stripped.substring(1);
+                            const decryptedBytes3 = xorDecrypt(encryptedData.bytes, stripped);
+                            const decompressed3 = await decompressBytes(decryptedBytes3);
+                            if (decompressed3) {
+                                hints = validateHints(decompressed3);
+                            }
                         }
                     }
                 }
