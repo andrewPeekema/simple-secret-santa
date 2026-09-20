@@ -1,7 +1,9 @@
 # Simple Secret Santa — Restart Design
 
 **Date:** 2026-09-14
-**Status:** Awaiting review
+**Status:** Approved for sub-projects 0–1. Sub-project 2 is pending redesign —
+see *Open questions for sub-project 2*. Revised 2026-09-19 after an independent
+critic review; corrections are marked *(2026-09-19)*.
 **Repo:** https://github.com/andrewPeekema/simple-secret-santa
 
 ## Context
@@ -51,6 +53,9 @@ and is willing to run code offline. The wishlist cipher remains repeating-key
 XOR, which such an attacker could break. Closing that would mean AES-GCM and a
 password with real entropy; it is a deliberate deferral, not an oversight.
 
+*(2026-09-19)* **Disputed — see open question 1.** Wishlist ciphertexts are
+shared group-wide by design, so this boundary does not hold as drawn.
+
 ## Design
 
 ### Distributed keys instead of derived keys
@@ -92,7 +97,10 @@ next change must not be.
 | 13+n | m | receiver, UTF-8 |
 
 Total `13 + n + m` bytes. For `Andrew`/`Kathryn`: 26 B → 35 base64url chars →
-**88-character URL** (down from 91).
+**88-character URL**. *(2026-09-19)* This is not a shortening: today's salt is
+`Math.random().toString(36).substring(2, 15)`, which is 11 characters 70% of
+the time and 10 characters 26% of the time, so today's links are already 88 or
+87 characters. The 91 originally quoted here was a 1-in-2,000 worst case.
 
 Names are **length-prefixed, not delimiter-separated**. This fixes a latent
 bug: `isValidName` (`:893`) permits `|`, but `encodeAssignment` (`:940`) uses
@@ -135,18 +143,26 @@ cannot be mis-transcribed by dropping a leading zero. The password input's
 ### Breaking compatibility
 
 The following are deleted outright (~110 lines) in sub-project 0, ahead of
-the refactor: `legacyDecode` (`:834`), the
-JSON and legacy branches of `decodeAssignment` (`:963-981`), the `JTdC` branch
+the refactor: `legacyDecode` (`:834`), the four-field pipe branch of
+`decodeAssignment` (`:956-959`), its JSON and legacy branches (within
+`:963-981` — that range also holds the function's closing `return null; }`,
+which stays), the `JTdC` branch
 of `decodeHints` (`:1011-1027`), the `VALID:` prefix path (`:1466`), the
 `#hints-` route (`:1592`), and the legacy portions of the retry cascade (`:1477-1496` and
 `:1517`). The five-character retry at `:1507` is retained until sub-project 2
 — see Build order for why it is not legacy code.
 
-Replaced by ~8 lines of old-link detection: if byte 0 is not `0x01` and the
-decoded bytes are UTF-8 containing `|`, show *"This link was created with an
-older version of Simple Secret Santa. Ask the organiser for a new one."*
+Replaced by ~8 lines of old-link detection showing *"This link was created
+with an older version of Simple Secret Santa. Ask the organiser for a new
+one."* *(2026-09-19)* The rule differs by sub-project. In sub-project 0 the
+live format is itself `giver|receiver|salt` as UTF-8, so a "not `0x01` and
+contains `|`" test would reject every working link; sub-project 0 instead
+detects the *shape* of the retired formats (the plan's `looksLikeOldLink`).
+The version-byte rule only becomes usable in sub-project 2, once v1 payloads
+exist.
 
-Links issued for the 2025 exchange stop working. Accepted.
+Links in the retired formats stop working in sub-project 0; every remaining
+v0 link stops working in sub-project 2. Accepted.
 
 ### Assignment algorithm
 
@@ -164,16 +180,20 @@ up to 1,000 times (`:1179`). Two changes:
 **This is a scope addition** beyond the three stated goals — a correctness bug
 found while reading. Flagged for explicit approval.
 
+*(2026-09-19)* **Disputed — see open question 3.** The two-couples example is
+wrong (a miss has probability ~2e-80), so no bug has been demonstrated.
+
 ## Structure
 
 `index.html` becomes markup only, loading `css/styles.css` and
 `<script type="module" src="js/main.js">`. GitHub Pages serves ES modules with
 the correct MIME type, so `git push` still deploys and the project keeps zero
-runtime dependencies and zero build step.
+JavaScript dependencies and zero build step. (The page does load Google Fonts
+from a third party at `index.html:9`; that is unchanged.)
 
 ```
 index.html            markup only
-css/styles.css        the 582-line <style> block, moved verbatim
+css/styles.css        the <style> block (index.html:10-592), moved verbatim
 js/
   main.js             bootstrap + hash routing
   codec.js            base64url <-> bytes; Crockford base32 <-> key; length-prefixed strings
@@ -186,11 +206,21 @@ js/
   ui/setup.js         participant and exclusion form, generate, results list
   ui/reveal.js        assignment screen
   ui/wishlist.js      create and view wishlist screens
-test/                 one .test.js per pure module
+test/                 one .test.js per pure module, plus golden.test.js
+test/fixtures/        golden v0 links captured before any deletion
+tools/                one-shot fixture generator
+package.json          {"type": "module"} only
 ```
 
-The six modules above `ui/` are pure and DOM-free. They carry the entire
+The six modules between `main.js` and `ui/` are pure and DOM-free. They carry the entire
 security model and every format decision, and they are the test target.
+
+**Inline handlers.** *(2026-09-19)* `index.html` has 14 inline `onclick`
+attributes, several inside `innerHTML` templates. Module scope is not global
+scope, so all of them break the moment the script becomes `type="module"`.
+The chosen approach is a shim: `main.js` assigns the handler functions onto
+`window` (`Object.assign(window, {...})`). Rewiring to `addEventListener` is
+not mechanical and is out of scope for a zero-behaviour-change refactor.
 
 **Known regression:** ES modules are blocked under `file://` by CORS, so
 double-clicking `index.html` will no longer work. Local development needs
@@ -225,8 +255,10 @@ alongside its zero runtime dependencies.
 
 ## Build order
 
-Four sub-projects, each independently shippable, each getting its own
-implementation plan.
+Four sub-projects. 0, 1 and 2 are each safe to ship on their own; 3 is
+deferred without a design. Sub-projects 0 and 1 share one implementation plan
+(`docs/superpowers/plans/2026-09-14-cleanup-and-modules.md`); 2 gets its own
+spec revision and plan.
 
 **Sub-project 0 — delete dead compatibility paths.** Runs first, before the
 refactor, so that no doomed code is carried into the new module boundaries.
@@ -235,12 +267,14 @@ understood, and placed, and they would distort the structure — `format.js`
 would grow a legacy section and `codec.js` would carry `legacyDecode` for a
 format nobody uses.
 
-Deleted: `legacyDecode` (`:834`), the JSON and legacy branches of
-`decodeAssignment` (`:963-981`), the `JTdC` branch of `decodeHints`
+Deleted: `legacyDecode` (`:834`), the four-field pipe branch of
+`decodeAssignment` (`:956-959`) and its JSON and legacy branches (within
+`:963-981`), the `JTdC` branch of `decodeHints`
 (`:1011-1027`), the `VALID:` prefix path (`:1466`), the `#hints-` route
 (`:1592`), the entire `isLegacy` branch of the retry cascade (`:1477-1496`),
 and the leading-zero stripping at `:1517`. Added: the ~8-line old-link
-message.
+message, keyed on the shape of the retired formats (see Breaking
+compatibility).
 
 **Explicitly retained:** the five-character retry at `:1507`. It is not
 compatibility code. Current passwords are always exactly six characters, since
@@ -252,16 +286,20 @@ by branch rather than by region. It becomes moot in sub-project 2, where
 fixed-length base32 removes the ambiguity that makes it necessary, and is
 deleted there.
 
-Verified without a test suite by capturing roughly six golden links from
-today's code beforehand — varied name shapes, with and without wishlists — and
-confirming they still resolve afterwards. A throwaway script, not a suite. The
+Verified by capturing golden links from today's code beforehand — varied name
+shapes, with and without wishlists, plus one per retired format — and
+confirming the live ones still resolve afterwards. *(2026-09-19)* The plan
+builds this as a small `node --test` suite over a temporary harness that evals
+the inline script, rather than the throwaway script first envisaged here. The
 fixtures are not wasted: sub-project 1 reuses them as characterisation tests,
 and sub-project 2 repurposes them as "old link shows the older-version
 message" tests.
 
-Note that this ships a version that breaks 2025 links before the new format
-exists. Acceptable: that exchange concluded in December, and the links are
-already dead in every practical sense.
+Note that this ships a version that breaks some old links before the new
+format exists. *(2026-09-19)* Only links in the retired formats break here;
+the three-field pipe format dates from `258ab32` (2025-11-28), so most
+2025-season links are in the current format and survive until sub-project 2.
+Acceptable either way: that exchange concluded in December.
 
 **Sub-project 1 — refactor and tests.** Mechanical extraction of CSS and ES
 modules with *zero* behaviour change, then characterisation tests describing
@@ -272,10 +310,11 @@ verifiable.
 
 **Sub-project 2 — format v1.** Per-person keys, version byte, length-prefixed
 names, base32 passwords, flags outside the cipher, the `|`-in-names fix, the
-crypto-grade shuffle, and deletion of the retained `:1507` retry. Ships the
-privacy fix and the 88-character URL. Deploy well clear of an exchange in
-progress, since it invalidates outstanding links; mid-September is a safe
-window.
+crypto-grade shuffle, and deletion of the retained `:1507` retry. Its design
+above is **not approved as written** — see *Open questions for sub-project 2*. Deploy well clear of an exchange in
+progress, since it invalidates outstanding links. *(2026-09-19)* The
+mid-September window first named here has passed without a sub-project 2 plan;
+the deploy date is an open question below.
 
 **Sub-project 3 — sharing UX.** Deferred. Revisit with a tested codebase
 underneath. The options explored: a pass-the-device in-person mode that needs
@@ -285,6 +324,52 @@ useless when one person generates every link on a single phone, and it would
 require a vendored local encoder, since an external QR API would transmit the
 secret links to a third party and destroy the property the fragment
 architecture exists to protect.
+
+## Open questions for sub-project 2
+
+Raised by the 2026-09-19 critic review. None affects sub-projects 0–1. Each
+must be settled in sub-project 2's own brainstorm before that work is planned;
+until then the *Design* section above is a proposal, not a decision.
+
+1. **The privacy claim stays false under 40-bit XOR.** Wishlist links are
+   shared with the whole group by design (`index.html:1384`), so every
+   participant holds every ciphertext without collecting anything. A
+   repeating-key XOR with a 5-byte key falls to a 2^40 brute force filtered by
+   the CRC16, and a short uncompressed wishlist falls to crib-dragging. The
+   threat model's "willing to run code offline" boundary does not separate old
+   from new — the salt attack needs a console too. Also, the hole and the fix
+   concern wishlist confidentiality only; assignments were never exposed by
+   it. Choose: move AES-GCM with a real-entropy key into scope (deletes
+   `crc16` and its framing, ~12 more URL characters), or narrow the README
+   claim to what XOR delivers.
+2. **Format v1 does not shorten links** (see Wire format v1). Goal 3 is
+   served only by the custom domain and sub-project 3. Restate the goal or
+   pull one of those forward. The "5-bit name packing: 88 → 83" comparison
+   inherits the same baseline.
+3. **The case for backtracking is unproven.** Two couples in four succeeds on
+   16.8% of attempts, so 1,000 attempts all missing has probability ~2e-80;
+   no failing case for rejection sampling has been shown, and the
+   "two-couples-in-four succeeds" test passes on today's code. Rejection
+   sampling draws uniformly from valid assignments; randomised backtracking
+   does not, and is worst-case exponential. "n ≤ 50" has no basis — the code
+   caps name length at 50, not participants. Default unless a failing case
+   appears: keep rejection sampling, adopt the crypto-grade shuffle, and
+   soften the error message.
+4. **Old `#h-` wishlist links under v1.** They are XOR ciphertext: byte 0 is
+   effectively random (1 in 256 equals `0x01`) and there is no `|` to detect.
+   Their behaviour and message are unspecified, and the test bullet "a v0
+   payload is rejected with the old-link message" does not say which payload
+   type it means.
+5. **XOR key material.** `XOR(key, ...)` could mean the 5 raw bytes or the
+   UTF-8 bytes of the 8-character base32 string; today's `xorEncrypt` uses the
+   password string's UTF-8 bytes (`:983`). Moot if AES-GCM is adopted.
+6. **Crockford `I`, `L`, `O`.** Standard Crockford decoding maps `I`/`L` → 1
+   and `O` → 0; this spec says the decoder rejects them, which works against
+   the transcription-robustness goal. Pick one.
+7. **Password UI.** Beyond the length rule at `:1443`, the change also touches
+   `maxlength="6"` and `text-transform: lowercase` at `:1419` and
+   `.toLowerCase()` at `:1435`.
+8. **Deploy window.** Must land well clear of any exchange in progress.
 
 ## Decisions deferred
 

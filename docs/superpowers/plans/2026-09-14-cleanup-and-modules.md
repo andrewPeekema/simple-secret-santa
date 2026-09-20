@@ -1,6 +1,8 @@
 # Compatibility Cleanup and Module Extraction — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For the lead:** this plan is already written — skip `writing-plans`. Run the critic gate on this file (16 tasks, so the gate holds), surface the findings with proposed rulings, then execute with superpowers:subagent-driven-development in the worktree `launch-agent` created. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Base:** line numbers throughout are stated against `index.html` at `f0e0a91`. The worktree branch forks from `restart-2026`, which carries only documents on top of that commit.
 
 **Goal:** Delete the dead backward-compatibility paths from `index.html`, then split the remaining single file into ES modules covered by unit tests — with no user-visible behaviour change.
 
@@ -18,6 +20,15 @@
 - **The five-character password retry at `index.html:1507` is NOT legacy code.** It handles a user mis-transcribing a six-character password by dropping a leading zero. It stays until sub-project 2. Do not delete it in Task 4.
 - **Deletions are justified branch by branch, never by region.** Three retry branches sit in one cascade and share a shape; only two are legacy.
 - Commit after every task. Never commit with failing tests.
+- **Quoted anchor text is binding; line numbers are navigational only.** Deletions in Tasks 2–5 shift everything below them, so positions cited in Tasks 2, 4 and 7 no longer hold by the time those tasks run — including within Task 2 itself, which deletes bottom-up. Locate every edit by the anchor text the task quotes; where a task gives no anchor, `grep` for the distinctive string. Task 7 slices on the `<script>` and `</script>` markers, not on `673-1620`.
+
+## Stop Conditions
+
+Stop and ask the user — do not rule on these yourself:
+
+- **Never `git push`.** Nothing on this branch has been pushed to GitHub; it exists only locally.
+- **Never merge to `main`.** GitHub Pages serves `main` directly, so a merge is a production deploy to the live site. That is a human decision.
+- **Never re-run `tools/gen-fixtures.mjs` after Task 1.** It reads `index.html`, so regenerating after any deletion would quietly rewrite the golden data to match the new behaviour and destroy the only guard this plan has.
 
 ## File Structure
 
@@ -1048,6 +1059,8 @@ test('KNOWN BUG: the pipe separator is still accepted (fixed in sub-project 2)',
 });
 ```
 
+> **The KNOWN BUG test is intentional — reviewers who flag it are overruled.** This plan's binding constraint is *no behaviour change*, and a characterisation test pinning today's behaviour is how that is enforced. Sub-project 2 inverts this assertion in the same commit that fixes the bug.
+
 - [ ] **Step 2: Run it to confirm it fails**
 
 Run: `node --test test/validate.test.js`
@@ -1125,12 +1138,16 @@ test('nobody ever draws themselves, over many runs', () => {
 test('honours exclusions when it succeeds', () => {
   const people = ['a', 'b', 'c', 'd'];
   const exclusions = { a: ['b'], c: ['d'] };
+  let succeeded = 0;
   for (let i = 0; i < 100; i++) {
     const receivers = buildAssignment(people, exclusions);
-    if (!receivers) continue; // rejection sampling may give up; see sub-project 2
+    if (!receivers) continue; // rejection sampling may give up
+    succeeded++;
     assert.notEqual(receivers[0], 'b');
     assert.notEqual(receivers[2], 'd');
   }
+  // Without this, a buildAssignment that always returned null would pass silently.
+  assert.ok(succeeded > 0, 'rejection sampling never succeeded in 100 attempts');
 });
 
 test('returns null when no arrangement can exist', () => {
@@ -1449,8 +1466,8 @@ Expected: under 80 lines. If it is much larger, something was not moved.
 
 - [ ] **Step 2: Confirm nothing is orphaned**
 
-Run: `grep -c 'function ' js/main.js`
-Expected: `1` — only `checkForReveal`.
+Run: `grep -n 'function ' js/main.js`
+Expected: exactly two matches — `async function checkForReveal()` and the `function (e)` input listener inside the bootstrap guard added in Task 7. Any third match is code that should have moved to a module.
 
 - [ ] **Step 3: Document the new development workflow in `README.md`**
 
@@ -1477,3 +1494,19 @@ git commit -m "docs: record the local-server development workflow"
 ```
 
 **CHECKPOINT — sub-project 1 complete.** `index.html` is markup only, every pure module has unit tests, and the golden fixtures captured in Task 1 still decode identically. Sub-project 2 (wire format v1) gets its own plan.
+
+---
+
+## Definition of Done
+
+Sub-project 0 is complete when `index.html` has shrunk by roughly 110 lines and `npm test` reports `pass 9`.
+
+Sub-project 1 is complete when all of the following hold:
+
+- `npm test` reports `pass 30`, `fail 0`
+- `index.html` is roughly 80 lines of markup
+- `js/main.js` is under 80 lines and defines only `checkForReveal` (plus the bootstrap listener)
+- the four legacy fixtures do not decode; every other fixture decodes exactly as it did at `f0e0a91`
+- a browser walk-through of the full journey — generate, reveal, create wishlist, decode wishlist, wrong password, old link — produces no console errors
+
+Then hand off to superpowers:finishing-a-development-branch. Whether and when to merge to `main` is the user's decision (see Stop Conditions).
