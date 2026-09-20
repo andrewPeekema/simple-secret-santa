@@ -3,6 +3,7 @@ import { compressBytes, decompressBytes } from './compress.js';
 import { simpleHash, crc16, xorEncrypt, xorDecrypt } from './secret.js';
 import { isValidName, getInvalidNameReason } from './validate.js';
 import { shuffle, isValidAssignment, buildAssignment } from './assign.js';
+import { encodeAssignment, decodeAssignment, looksLikeOldLink, encodeHints, decodeHints } from './format.js';
         // Store the secret salt used for this session
         let sessionSalt = Math.random().toString(36).substring(2, 15);
 
@@ -42,68 +43,6 @@ import { shuffle, isValidAssignment, buildAssignment } from './assign.js';
                 }, 2000);
             } catch (err) {
                 alert('Failed to copy. Please select and copy manually.');
-            }
-        }
-
-        // ============================================
-        // ENCODING FUNCTIONS
-        // ============================================
-
-        function encodeAssignment(data) {
-            // Pipe-delimited format: giver|receiver|salt (key removed - was unused)
-            const compact = data.giver + '|' + data.receiver + '|' + data.salt;
-            const bytes = utf8ToBytes(compact);
-            return bytesToUrlSafeBase64(bytes);
-        }
-
-        // Recognises links issued before the 2026 cleanup, so they can be reported
-        // as outdated rather than as corrupt. Replaced by a version-byte check in
-        // sub-project 2.
-        function looksLikeOldLink(encoded) {
-            try {
-                const decoded = bytesToUtf8(urlSafeBase64ToBytes(encoded));
-                if (decoded.startsWith('{') || decoded.startsWith('%7B')) return true;
-                return decoded.split('|').length === 4;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        function decodeAssignment(encoded) {
-            try {
-                const bytes = urlSafeBase64ToBytes(encoded);
-                const decoded = bytesToUtf8(bytes);
-                if (decoded.includes('|') && !decoded.includes('{')) {
-                    const parts = decoded.split('|');
-                    if (parts.length === 3) {
-                        return { giver: parts[0], receiver: parts[1], salt: parts[2] };
-                    }
-                }
-            } catch (e) {}
-
-            return null;
-        }
-
-        async function encodeHints(plaintext, password) {
-            const plaintextBytes = utf8ToBytes(plaintext);
-            
-            // Prepend 2-byte CRC16 checksum for validation (replaces VALID: prefix)
-            const checksum = crc16(plaintextBytes);
-            const withChecksum = new Uint8Array(plaintextBytes.length + 2);
-            withChecksum[0] = (checksum >> 8) & 0xFF;  // High byte
-            withChecksum[1] = checksum & 0xFF;         // Low byte
-            withChecksum.set(plaintextBytes, 2);
-            
-            const compressed = await compressBytes(withChecksum);
-            const encrypted = xorEncrypt(compressed, password);
-            return bytesToUrlSafeBase64(encrypted);
-        }
-
-        async function decodeHints(encoded) {
-            try {
-                return urlSafeBase64ToBytes(encoded);
-            } catch (e) {
-                return null;
             }
         }
 
@@ -649,10 +588,7 @@ if (typeof document !== 'undefined') {
     checkForReveal();
 }
 
-export {
-    encodeAssignment, decodeAssignment, looksLikeOldLink,
-    encodeHints, decodeHints,
-};
+export { encodeAssignment, decodeAssignment, looksLikeOldLink, encodeHints, decodeHints };
 
 export { isValidName, getInvalidNameReason };
 

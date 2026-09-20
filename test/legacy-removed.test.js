@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import * as api from '../js/main.js';
+import * as api from '../js/format.js';
 
 const fixtures = JSON.parse(
   await readFile(new URL('./fixtures/v0-links.json', import.meta.url), 'utf8'));
@@ -14,7 +14,6 @@ test('decodeHints returns raw bytes, with no legacy wrapper', async () => {
 test('the #hints- route is gone from the source', async () => {
   const html = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
   assert.ok(!html.includes("hash.startsWith('hints-')"), 'legacy #hints- route still present');
-  assert.ok(!html.includes("encoded.startsWith('JTdC')"), 'legacy JTdC branch still present');
 });
 
 test('legacy assignment formats no longer decode', () => {
@@ -24,8 +23,9 @@ test('legacy assignment formats no longer decode', () => {
 });
 
 test('legacyDecode is gone from the source', async () => {
-  const html = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../js/format.js', import.meta.url), 'utf8');
   assert.ok(!html.includes('function legacyDecode'), 'legacyDecode still present');
+  assert.ok(!html.includes("encoded.startsWith('JTdC')"), 'legacy JTdC branch still present');
 });
 
 test('legacy password fallbacks are gone, transcription leniency is kept', async () => {
