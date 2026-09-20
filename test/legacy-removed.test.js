@@ -1,0 +1,19 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { loadV0 } from './harness-v0.mjs';
+
+const fixtures = JSON.parse(
+  await readFile(new URL('./fixtures/v0-links.json', import.meta.url), 'utf8'));
+const api = await loadV0();
+
+test('decodeHints returns raw bytes, with no legacy wrapper', async () => {
+  const result = await api.decodeHints(fixtures.wishlists[0].encoded);
+  assert.ok(result instanceof Uint8Array, 'expected a Uint8Array, got ' + typeof result);
+});
+
+test('the #hints- route is gone from the source', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(!html.includes("hash.startsWith('hints-')"), 'legacy #hints- route still present');
+  assert.ok(!html.includes("encoded.startsWith('JTdC')"), 'legacy JTdC branch still present');
+});

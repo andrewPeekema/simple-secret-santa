@@ -18,7 +18,7 @@ test('every assignment fixture round-trips', () => {
 test('every wishlist fixture decrypts with its password', async () => {
   for (const f of fixtures.wishlists) {
     const payload = await api.decodeHints(f.encoded);
-    const plain = await api.decompressBytes(api.xorEncrypt(payload.bytes, f.password));
+    const plain = await api.decompressBytes(api.xorEncrypt(payload, f.password));
     assert.equal(Buffer.from(plain.slice(2)).toString('utf8'), f.plaintext,
       'failed for ' + f.label);
   }
@@ -30,7 +30,7 @@ test('every wishlist fixture decrypts with its password', async () => {
 test('a wrong password does not yield the plaintext', async () => {
   const f = fixtures.wishlists[0];
   const payload = await api.decodeHints(f.encoded);
-  const plain = await api.decompressBytes(api.xorEncrypt(payload.bytes, 'zzzzzz'));
+  const plain = await api.decompressBytes(api.xorEncrypt(payload, 'zzzzzz'));
   const text = plain ? Buffer.from(plain.slice(2)).toString('utf8') : '';
   assert.notEqual(text, f.plaintext);
 });

@@ -1007,27 +1007,8 @@
         }
 
         async function decodeHints(encoded) {
-            // Check for legacy format (starts with JSON pattern after decode)
-            if (encoded.startsWith('JTdC')) {
-                try {
-                    const legacy = legacyDecode(encoded);
-                    if (legacy) {
-                        const json = JSON.parse(legacy);
-                        const binary = atob(json.encrypted);
-                        const bytes = new Uint8Array(binary.length);
-                        for (let i = 0; i < binary.length; i++) {
-                            bytes[i] = binary.charCodeAt(i);
-                        }
-                        // Legacy format has no compression header
-                        return { bytes, isLegacy: true };
-                    }
-                } catch (e) {}
-            }
-            
-            // New format
             try {
-                const bytes = urlSafeBase64ToBytes(encoded);
-                return { bytes, isLegacy: false };
+                return urlSafeBase64ToBytes(encoded);
             } catch (e) {
                 return null;
             }
@@ -1393,7 +1374,7 @@
             `;
         }
 
-        function showViewHints(encryptedData) {
+        function showViewHints(encryptedBytes) {
             document.getElementById('mainContainer').style.display = 'none';
             document.getElementById('setupSection').style.display = 'none';
             document.getElementById('revealSection').style.display = 'none';
@@ -1401,7 +1382,7 @@
             const viewHintsSection = document.getElementById('viewHintsSection');
             viewHintsSection.style.display = 'block';
             
-            window.currentEncryptedData = encryptedData;
+            window.currentEncryptedBytes = encryptedBytes;
             
             viewHintsSection.innerHTML = `
                 <div class="title-stars">
@@ -1433,7 +1414,7 @@
 
         async function tryDecodeHintsWithPassword() {
             const enteredPassword = document.getElementById('passwordInput').value.trim().toLowerCase();
-            const encryptedData = window.currentEncryptedData;
+            const encryptedBytes = window.currentEncryptedBytes;
             
             if (!enteredPassword) {
                 alert('Please enter the password!');
@@ -1474,15 +1455,15 @@
             try {
                 let hints = null;
                 
-                if (encryptedData.isLegacy) {
+                if (encryptedBytes.isLegacy) {
                     // Legacy format: no compression header, direct XOR, uses VALID: prefix
-                    const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
+                    const decryptedBytes = xorDecrypt(encryptedBytes, enteredPassword);
                     hints = validateHints(decryptedBytes);
                     
                     // Try padded password if needed (user omitted a leading zero)
                     if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
-                        const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
+                        const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
                         hints = validateHints(decryptedBytes2);
                     }
                     
@@ -1491,13 +1472,13 @@
                         let stripped = enteredPassword;
                         while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
                             stripped = stripped.substring(1);
-                            const decryptedBytes3 = xorDecrypt(encryptedData.bytes, stripped);
+                            const decryptedBytes3 = xorDecrypt(encryptedBytes, stripped);
                             hints = validateHints(decryptedBytes3);
                         }
                     }
                 } else {
                     // New format: has compression header
-                    const decryptedBytes = xorDecrypt(encryptedData.bytes, enteredPassword);
+                    const decryptedBytes = xorDecrypt(encryptedBytes, enteredPassword);
                     const decompressed = await decompressBytes(decryptedBytes);
                     if (decompressed) {
                         hints = validateHints(decompressed);
@@ -1506,7 +1487,7 @@
                     // Try padded password if needed (user omitted a leading zero)
                     if (!hints && enteredPassword.length === 5) {
                         const paddedPassword = '0' + enteredPassword;
-                        const decryptedBytes2 = xorDecrypt(encryptedData.bytes, paddedPassword);
+                        const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
                         const decompressed2 = await decompressBytes(decryptedBytes2);
                         if (decompressed2) {
                             hints = validateHints(decompressed2);
@@ -1518,7 +1499,7 @@
                         let stripped = enteredPassword;
                         while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
                             stripped = stripped.substring(1);
-                            const decryptedBytes3 = xorDecrypt(encryptedData.bytes, stripped);
+                            const decryptedBytes3 = xorDecrypt(encryptedBytes, stripped);
                             const decompressed3 = await decompressBytes(decryptedBytes3);
                             if (decompressed3) {
                                 hints = validateHints(decompressed3);
@@ -1579,19 +1560,9 @@
             if (window.location.hash && window.location.hash.length > 1) {
                 const hash = window.location.hash.substring(1);
                 
-                // Handle hint links (new #h- and legacy #hints-)
+                // Handle wishlist links
                 if (hash.startsWith('h-')) {
                     const encoded = hash.substring(2);
-                    const encryptedData = await decodeHints(encoded);
-                    
-                    if (encryptedData) {
-                        showViewHints(encryptedData);
-                    } else {
-                        showError("Invalid hint link!");
-                    }
-                } else if (hash.startsWith('hints-')) {
-                    // Legacy format backward compatibility
-                    const encoded = hash.substring(6);
                     const encryptedData = await decodeHints(encoded);
                     
                     if (encryptedData) {
