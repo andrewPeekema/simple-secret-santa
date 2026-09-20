@@ -2,6 +2,7 @@ import { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes } 
 import { compressBytes, decompressBytes } from './compress.js';
 import { simpleHash, crc16, xorEncrypt, xorDecrypt } from './secret.js';
 import { isValidName, getInvalidNameReason } from './validate.js';
+import { shuffle, isValidAssignment, buildAssignment } from './assign.js';
         // Store the secret salt used for this session
         let sessionSalt = Math.random().toString(36).substring(2, 15);
 
@@ -43,16 +44,6 @@ import { isValidName, getInvalidNameReason } from './validate.js';
                 alert('Failed to copy. Please select and copy manually.');
             }
         }
-
-        function shuffle(array) {
-            const arr = [...array];
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-            return arr;
-        }
-
 
         // ============================================
         // ENCODING FUNCTIONS
@@ -192,14 +183,6 @@ import { isValidName, getInvalidNameReason } from './validate.js';
             return exclusions;
         }
 
-        function isValidAssignment(givers, receivers, exclusions) {
-            for (let i = 0; i < givers.length; i++) {
-                if (givers[i] === receivers[i]) return false;
-                if (exclusions[givers[i]] && exclusions[givers[i]].includes(receivers[i])) return false;
-            }
-            return true;
-        }
-
         function generateSecretSanta() {
             updateExclusionDropdowns();
             
@@ -252,20 +235,12 @@ import { isValidName, getInvalidNameReason } from './validate.js';
                 }
             }
 
-            let givers = [...people];
-            let receivers = null;
-            let attempts = 0;
-            const maxAttempts = 1000;
-            
             sessionSalt = Math.random().toString(36).substring(2, 15);
-            
-            while (attempts < maxAttempts) {
-                receivers = shuffle([...people]);
-                if (isValidAssignment(givers, receivers, exclusions)) break;
-                attempts++;
-            }
-            
-            if (attempts === maxAttempts) {
+
+            const givers = [...people];
+            const receivers = buildAssignment(people, exclusions);
+
+            if (!receivers) {
                 alert('Could not generate a valid Secret Santa with these exclusions. Try removing some exclusion rules.');
                 return;
             }
@@ -677,10 +652,11 @@ if (typeof document !== 'undefined') {
 export {
     encodeAssignment, decodeAssignment, looksLikeOldLink,
     encodeHints, decodeHints,
-    shuffle, isValidAssignment,
 };
 
 export { isValidName, getInvalidNameReason };
+
+export { shuffle, isValidAssignment, buildAssignment };
 
 export { simpleHash, crc16, xorEncrypt, xorDecrypt };
 
