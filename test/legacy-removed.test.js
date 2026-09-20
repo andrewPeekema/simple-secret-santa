@@ -17,3 +17,14 @@ test('the #hints- route is gone from the source', async () => {
   assert.ok(!html.includes("hash.startsWith('hints-')"), 'legacy #hints- route still present');
   assert.ok(!html.includes("encoded.startsWith('JTdC')"), 'legacy JTdC branch still present');
 });
+
+test('legacy assignment formats no longer decode', () => {
+  assert.equal(api.decodeAssignment(fixtures.legacy.pipe4Field), null, 'four-field pipe');
+  assert.equal(api.decodeAssignment(fixtures.legacy.jsonFormat), null, 'bare JSON');
+  assert.equal(api.decodeAssignment(fixtures.legacy.urlEncodedJson), null, 'url-encoded JSON');
+});
+
+test('legacyDecode is gone from the source', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(!html.includes('function legacyDecode'), 'legacyDecode still present');
+});

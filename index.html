@@ -830,16 +830,6 @@
             return bytes;
         }
 
-        // Legacy decoding for backward compatibility
-        function legacyDecode(str) {
-            try {
-                while (str.length % 4) str += '=';
-                return decodeURIComponent(atob(str));
-            } catch (e) {
-                return null;
-            }
-        }
-
         async function copyToClipboard(text, button) {
             try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -943,39 +933,17 @@
         }
 
         function decodeAssignment(encoded) {
-            // Try pipe-delimited format first (new default)
             try {
                 const bytes = urlSafeBase64ToBytes(encoded);
                 const decoded = bytesToUtf8(bytes);
                 if (decoded.includes('|') && !decoded.includes('{')) {
                     const parts = decoded.split('|');
                     if (parts.length === 3) {
-                        // New format: giver|receiver|salt
                         return { giver: parts[0], receiver: parts[1], salt: parts[2] };
                     }
-                    if (parts.length === 4) {
-                        // Old format: giver|receiver|key|salt (key is ignored)
-                        return { giver: parts[0], receiver: parts[1], salt: parts[3] };
-                    }
                 }
             } catch (e) {}
-            
-            // Try JSON format (backward compatibility)
-            try {
-                const bytes = urlSafeBase64ToBytes(encoded);
-                const json = bytesToUtf8(bytes);
-                const data = JSON.parse(json);
-                if (data.giver && data.receiver) {
-                    return data;
-                }
-            } catch (e) {}
-            
-            // Fall back to legacy format
-            try {
-                const legacy = legacyDecode(encoded);
-                if (legacy) return JSON.parse(legacy);
-            } catch (e) {}
-            
+
             return null;
         }
 
