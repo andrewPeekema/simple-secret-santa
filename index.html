@@ -77,6 +77,17 @@
             </div>
         </div>
 
+        <!--
+            The markup above has one more closing </div> than opening <div>
+            (18 vs 17); the browser silently ignores the stray close, and
+            that is what leaves #revealSection, #hintsSection and
+            #viewHintsSection below outside #mainContainer instead of nested
+            inside it. This is deliberate-by-accident: each of those three
+            hides #mainContainer and shows itself, so if you "fix" the
+            imbalance by moving them inside #mainContainer, every reveal,
+            error and wishlist view breaks even though the test suite stays
+            green. Do not change this nesting.
+        -->
         <div id="revealSection" style="display: none;">
         </div>
 

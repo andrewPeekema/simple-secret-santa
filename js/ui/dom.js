@@ -1,3 +1,7 @@
+// Text-context only: escapes via textContent/innerHTML (&, <, >) but does not
+// escape quotes, so its output is not safe to interpolate into an
+// HTML-attribute value unless the source text is known never to contain a
+// quote character.
 export function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

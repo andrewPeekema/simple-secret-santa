@@ -1,3 +1,7 @@
+// copyToClipboard is never called at module scope — it is only referenced
+// from inside an onclick="..." string in a template below, resolved through
+// the window shim at click time. Kept here as the only greppable trace of
+// that dependency.
 import { escapeHtml, copyToClipboard } from './dom.js';
 import { encodeHints } from '../format.js';
 import { simpleHash, crc16, xorDecrypt } from '../secret.js';

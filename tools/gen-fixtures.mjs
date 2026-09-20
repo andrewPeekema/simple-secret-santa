@@ -1,5 +1,9 @@
-// One-shot generator. Run once in Task 1; the output is committed and then
-// treated as immutable golden data. Do not re-run after Task 2.
+// This script can no longer run: the test/harness-v0.mjs it imports below was
+// deleted once the code became importable ES modules. It is kept only as the
+// historical record of how test/fixtures/v0-links.json was generated. Those
+// fixtures are now immutable golden data captured from the pre-cleanup
+// behaviour and must never be regenerated — regenerating them would rewrite
+// the guard to match whatever the code currently does, defeating its purpose.
 import { writeFile, mkdir } from 'node:fs/promises';
 import { loadV0 } from '../test/harness-v0.mjs';
 

@@ -17,7 +17,7 @@ test('rejects empty, overlong, markup and punctuation-only names', () => {
 
   // Truthiness alone cannot tell the seven distinct messages apart: a stub
   // returning one generic string for every rejection passes the loop above.
-  // These pin the messages the UI actually shows (js/main.js surfaces them).
+  // These pin the messages the UI actually shows (js/ui/setup.js surfaces them).
   assert.equal(getInvalidNameReason(''), 'Name cannot be empty');
   assert.equal(getInvalidNameReason('A'.repeat(51)), 'Name must be 50 characters or less');
   assert.equal(getInvalidNameReason('a&b'), "Name cannot contain '&'");
@@ -30,9 +30,16 @@ test('accepts a name at exactly the 50-character limit', () => {
 });
 
 test('KNOWN BUG: the pipe separator is still accepted (fixed in sub-project 2)', () => {
-  // '|' is the field separator in the encoded link format, so a name like
-  // 'Bob|Ann' decodes into the wrong fields. Accepting it is a latent bug, not
-  // a design choice — this test pins today's behaviour so sub-project 2 can
-  // invert the assertion in the same commit that fixes it. Do not delete.
+  // '|' is the field separator in the encoded link format, and '{' is
+  // rejected by decodeAssignment's guard — but isValidName accepts both, so
+  // a name like 'Bob|Ann' or '{Bob}' produces a link that never decodes. It
+  // no longer "decodes into the wrong fields" as it once did at this
+  // branch's base; instead decoding fails outright and looksLikeOldLink
+  // reports it as an older-version link, so the recipient is told to ask the
+  // organiser for a new one — who then regenerates the identical broken
+  // link. Accepting either character is a latent bug, not a design choice —
+  // these assertions pin today's behaviour so sub-project 2 can invert both
+  // in the same commit that fixes them together. Do not delete.
   assert.equal(isValidName('Bob|Ann'), true);
+  assert.equal(isValidName('{Bob}'), true);
 });

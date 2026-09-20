@@ -35,6 +35,14 @@ export async function compressBytes(data) {
     try {
         const stream = new CompressionStream('deflate-raw');
         const writer = stream.writable.getWriter();
+        // writer.write/close are deliberately un-awaited, carried over
+        // verbatim from the pre-split code. A rejection here therefore
+        // escapes this try/catch entirely — in Node it terminates the
+        // process, in a browser it is only a console error — rather than
+        // being caught below. This path is reachable from ordinary
+        // wrong-password use (see decompressBytes below), not only from
+        // corrupt data, so anyone adding a wrong-password test through the
+        // UI layer must add the await first.
         writer.write(data);
         writer.close();
 
