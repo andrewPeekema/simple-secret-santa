@@ -47,3 +47,17 @@ test('makeSalt is actually random, not a constant', () => {
   for (let i = 0; i < 200; i++) seen.add(makeSalt());
   assert.ok(seen.size > 190, 'expected ~200 distinct salts, got ' + seen.size);
 });
+
+test('makeSalt does not draw from Math.random', () => {
+  // The salt is public, so this is not about entropy. It is about keeping the
+  // one published draw off the generator stream that also draws the shuffle.
+  const realRandom = Math.random;
+  Math.random = () => { throw new Error('makeSalt must not call Math.random'); };
+  try {
+    for (let i = 0; i < 50; i++) {
+      assert.match(makeSalt(), /^[0-9a-z]{4}$/);
+    }
+  } finally {
+    Math.random = realRandom;
+  }
+});
