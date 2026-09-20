@@ -1,9 +1,19 @@
 # Simple Secret Santa — Restart Design
 
 **Date:** 2026-09-14
-**Status:** Approved. Revised 2026-09-19 twice: corrected after an independent
-critic review, then re-scoped when the threat model was narrowed (see *Threat
-model*). Sub-project 2 shrank from a new wire format to three small changes.
+**Status:** Complete on local `main` as of 2026-09-20 — sub-projects 0, 1 and
+2 plus the salt-source change, browser-verified (see
+`docs/superpowers/verification/2026-09-20-browser-walkthrough.md`).
+Sub-project 3 is deferred. **Not deployed:** pushing `main` is the user's
+decision. Revised 2026-09-19 after an independent critic review and again when
+the threat model was narrowed (see *Threat model*).
+
+**Accepted exception:** a wrong password against a *compressed* wishlist
+leaves one `console.error` and two unhandled promise rejections from the
+un-awaited stream writes in `decompressBytes()` (`js/compress.js`). The page
+shows the correct error, so users never see it. The user ruled on 2026-09-20:
+document, do not fix. The "no console errors" criterion is waived for that
+one case.
 **Repo:** https://github.com/andrewPeekema/simple-secret-santa
 
 ## Context
