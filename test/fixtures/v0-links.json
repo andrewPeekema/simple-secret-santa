@@ -1,0 +1,48 @@
+{
+  "salt": "k7f3m2p9q1x4c",
+  "assignments": [
+    {
+      "giver": "Andrew",
+      "receiver": "Kathryn",
+      "salt": "k7f3m2p9q1x4c",
+      "encoded": "QW5kcmV3fEthdGhyeW58azdmM20ycDlxMXg0Yw"
+    },
+    {
+      "giver": "José",
+      "receiver": "Zoë",
+      "salt": "k7f3m2p9q1x4c",
+      "encoded": "Sm9zw6l8Wm_Dq3xrN2YzbTJwOXExeDRj"
+    },
+    {
+      "giver": "Mary-Anne O'Brien",
+      "receiver": "Bob Jr.",
+      "salt": "k7f3m2p9q1x4c",
+      "encoded": "TWFyeS1Bbm5lIE8nQnJpZW58Qm9iIEpyLnxrN2YzbTJwOXExeDRj"
+    },
+    {
+      "giver": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "receiver": "B",
+      "salt": "k7f3m2p9q1x4c",
+      "encoded": "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUF8QnxrN2YzbTJwOXExeDRj"
+    }
+  ],
+  "wishlists": [
+    {
+      "label": "short (incompressible)",
+      "plaintext": "socks",
+      "password": "s921er",
+      "encoded": "cw1JQgoRGEo"
+    },
+    {
+      "label": "long (deflate wins)",
+      "plaintext": "Books about hiking, wool socks size 10, dark chocolate, a good pour-over coffee setup, nothing scented please. I like blue and green. No clothing unless its socks. Board games always welcome!",
+      "password": "s921er",
+      "encoded": "chT88GiwQyk2cew45Ua6kWAMD9HTgXK1gdi5TVNjB3UlDcXy4l_FCP5n9OVeRUnLl6MUXQN4xGkur7q2mgETe056-Dxh2PlSO18jmugEwx4ps7idV6VPnXbYhhzlNWre7iiZY_lBXeluuf58MVN2WwHvAgw2zPYj5tf67Br1al6hJ_SWMr7aF0q1NTTE0Zt5"
+    }
+  ],
+  "legacy": {
+    "pipe4Field": "QW5kcmV3fEthdGhyeW58dW51c2Vka2V5fGs3ZjNtMnA5cTF4NGM",
+    "jsonFormat": "eyJnaXZlciI6IkFuZHJldyIsInJlY2VpdmVyIjoiS2F0aHJ5biIsInNhbHQiOiJrN2YzbTJwOXExeDRjIn0",
+    "urlEncodedJson": "JTdCJTIyZ2l2ZXIlMjIlM0ElMjJBbmRyZXclMjIlMkMlMjJyZWNlaXZlciUyMiUzQSUyMkthdGhyeW4lMjIlMkMlMjJzYWx0JTIyJTNBJTIyazdmM20ycDlxMXg0YyUyMiU3RA"
+  }
+}

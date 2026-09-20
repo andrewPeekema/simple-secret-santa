@@ -1,0 +1,8 @@
+{
+  "name": "simple-secret-santa",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
