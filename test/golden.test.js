@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { loadV0 } from './harness-v0.mjs';
+import * as api from '../js/main.js';
 
 const fixtures = JSON.parse(
   await readFile(new URL('./fixtures/v0-links.json', import.meta.url), 'utf8'));
-const api = await loadV0();
 
 test('every assignment fixture round-trips', () => {
   for (const f of fixtures.assignments) {
