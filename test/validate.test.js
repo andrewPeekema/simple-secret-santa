@@ -29,17 +29,16 @@ test('accepts a name at exactly the 50-character limit', () => {
   assert.equal(isValidName('A'.repeat(50)), true);
 });
 
-test('KNOWN BUG: the pipe separator is still accepted (fixed in sub-project 2)', () => {
-  // '|' is the field separator in the encoded link format, and '{' is
-  // rejected by decodeAssignment's guard — but isValidName accepts both, so
-  // a name like 'Bob|Ann' or '{Bob}' produces a link that never decodes. It
-  // no longer "decodes into the wrong fields" as it once did at this
-  // branch's base; instead decoding fails outright and looksLikeOldLink
-  // reports it as an older-version link, so the recipient is told to ask the
-  // organiser for a new one — who then regenerates the identical broken
-  // link. Accepting either character is a latent bug, not a design choice —
-  // these assertions pin today's behaviour so sub-project 2 can invert both
-  // in the same commit that fixes them together. Do not delete.
-  assert.equal(isValidName('Bob|Ann'), true);
-  assert.equal(isValidName('{Bob}'), true);
+test('rejects the two characters that produce unusable links', () => {
+  // '|' is the field separator in the encoded link format and '{' is refused
+  // outright by decodeAssignment's guard, so a name containing either produces
+  // a link that never decodes — and looksLikeOldLink then reports it as an
+  // older-version link, sending the recipient back to an organiser who
+  // regenerates the identical broken link. Sub-project 1 pinned this as a
+  // KNOWN BUG; these assertions are the inversion that fixes it.
+  for (const n of ['Bob|Ann', '{Bob}', 'a|b', 'x{y', 'Ann|', '{']) {
+    assert.equal(isValidName(n), false, 'should reject ' + JSON.stringify(n));
+  }
+  assert.equal(getInvalidNameReason('Bob|Ann'), "Name cannot contain '|'");
+  assert.equal(getInvalidNameReason('{Bob}'), "Name cannot contain '{'");
 });
