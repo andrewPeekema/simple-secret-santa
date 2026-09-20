@@ -8,6 +8,9 @@ export function isValidName(name) {
     // Disallow characters that cause HTML escaping issues or security concerns,
     // plus the two that break the link format: '|' is the field separator in
     // encodeAssignment, and decodeAssignment refuses any payload containing '{'.
+    // A '|' anywhere, or a '{' at the start of the giver's name, is reported
+    // as an older-version link; a '{' elsewhere instead lands on
+    // "Invalid Secret Santa link!".
     const disallowed = /[&<>|{\x00-\x1F\x7F]/;
     if (disallowed.test(name)) return false;
 

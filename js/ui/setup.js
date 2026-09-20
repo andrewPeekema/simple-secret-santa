@@ -4,7 +4,8 @@ import { buildAssignment } from '../assign.js';
 import { isValidName, getInvalidNameReason } from '../validate.js';
 import { makeSalt } from '../secret.js';
 
-// Store the secret salt used for this session
+// The per-session salt shared by every link in this group. Public by design —
+// see makeSalt() in js/secret.js for why.
 let sessionSalt = makeSalt();
 export function getSessionSalt() { return sessionSalt; }
 

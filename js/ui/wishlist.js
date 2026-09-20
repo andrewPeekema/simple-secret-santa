@@ -119,7 +119,7 @@ export function showViewHints(encryptedBytes) {
             </p>
             <input type="text" id="passwordInput" placeholder="Password" maxlength="6" style="text-transform: lowercase; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 1.1rem; text-align: center; letter-spacing: 0.15em;">
             <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-                Only the assigned Secret Santa has this password
+                Only the assigned Secret Santa is shown this password
             </p>
             <button class="create-hints-btn" onclick="tryDecodeHintsWithPassword()">
                 Decode

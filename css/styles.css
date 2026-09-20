@@ -523,6 +523,14 @@
             font-size: 12px;
         }
 
+        /* The box gained a second paragraph in sub-project 2; without this the
+           panel draws two dividers where the design has one. */
+        .how-it-works-content p + p {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 10px;
+        }
+
         /* Password display box */
         div[style*="background: var(--bg-tertiary)"] strong {
             color: var(--green-light) !important;

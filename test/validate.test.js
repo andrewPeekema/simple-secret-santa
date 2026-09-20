@@ -32,10 +32,12 @@ test('accepts a name at exactly the 50-character limit', () => {
 test('rejects the two characters that produce unusable links', () => {
   // '|' is the field separator in the encoded link format and '{' is refused
   // outright by decodeAssignment's guard, so a name containing either produces
-  // a link that never decodes — and looksLikeOldLink then reports it as an
-  // older-version link, sending the recipient back to an organiser who
-  // regenerates the identical broken link. Sub-project 1 pinned this as a
-  // KNOWN BUG; these assertions are the inversion that fixes it.
+  // a link that never decodes. A '|' anywhere, or a '{' at the start of the
+  // giver's name, is reported by looksLikeOldLink as an older-version link,
+  // sending the recipient back to an organiser who regenerates the identical
+  // broken link; a '{' elsewhere instead lands on "Invalid Secret Santa
+  // link!". Sub-project 1 pinned this as a KNOWN BUG; these assertions are
+  // the inversion that fixes it.
   for (const n of ['Bob|Ann', '{Bob}', 'a|b', 'x{y', 'Ann|', '{']) {
     assert.equal(isValidName(n), false, 'should reject ' + JSON.stringify(n));
   }
