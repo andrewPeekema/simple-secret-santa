@@ -1,11 +1,6 @@
-import { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes } from './codec.js';
-import { compressBytes, decompressBytes } from './compress.js';
-import { simpleHash, crc16, xorEncrypt, xorDecrypt } from './secret.js';
-import { isValidName, getInvalidNameReason } from './validate.js';
-import { shuffle, isValidAssignment, buildAssignment } from './assign.js';
-import { encodeAssignment, decodeAssignment, looksLikeOldLink, encodeHints, decodeHints } from './format.js';
-import { escapeHtml, copyToClipboard, showError } from './ui/dom.js';
-import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks, getSessionSalt } from './ui/setup.js';
+import { decodeAssignment, decodeHints, looksLikeOldLink } from './format.js';
+import { copyToClipboard, showError } from './ui/dom.js';
+import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks } from './ui/setup.js';
 import { revealAssignment } from './ui/reveal.js';
 import { showCreateHints, generateHintLink, showViewHints, tryDecodeHintsWithPassword } from './ui/wishlist.js';
 
@@ -66,15 +61,3 @@ if (typeof document !== 'undefined') {
 
     checkForReveal();
 }
-
-export { encodeAssignment, decodeAssignment, looksLikeOldLink, encodeHints, decodeHints };
-
-export { isValidName, getInvalidNameReason };
-
-export { shuffle, isValidAssignment, buildAssignment };
-
-export { simpleHash, crc16, xorEncrypt, xorDecrypt };
-
-export { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes };
-
-export { compressBytes, decompressBytes };
