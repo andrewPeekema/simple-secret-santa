@@ -37,3 +37,10 @@ test('legacy password fallbacks are gone, transcription leniency is kept', async
   assert.equal(html.split('enteredPassword.length === 5').length - 1, 1,
     'the five-character transcription retry must remain, exactly once');
 });
+
+test('legacy links are recognised as old rather than merely invalid', () => {
+  assert.equal(api.looksLikeOldLink(fixtures.legacy.pipe4Field), true, 'four-field pipe');
+  assert.equal(api.looksLikeOldLink(fixtures.legacy.jsonFormat), true, 'bare JSON');
+  assert.equal(api.looksLikeOldLink(fixtures.legacy.urlEncodedJson), true, 'url-encoded JSON');
+  assert.equal(api.looksLikeOldLink('not-a-link-at-all'), false, 'genuine rubbish');
+});

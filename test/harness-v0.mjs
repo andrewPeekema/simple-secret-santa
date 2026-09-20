@@ -17,6 +17,7 @@ export async function loadV0() {
   globalThis.alert = () => {};
 
   const exports = '; return { encodeAssignment, decodeAssignment, encodeHints, '
-    + 'decodeHints, simpleHash, crc16, xorEncrypt, compressBytes, decompressBytes };';
+    + 'decodeHints, simpleHash, crc16, xorEncrypt, compressBytes, decompressBytes, '
+    + 'looksLikeOldLink };';
   return new Function(src + exports)();
 }

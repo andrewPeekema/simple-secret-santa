@@ -932,6 +932,19 @@
             return bytesToUrlSafeBase64(bytes);
         }
 
+        // Recognises links issued before the 2026 cleanup, so they can be reported
+        // as outdated rather than as corrupt. Replaced by a version-byte check in
+        // sub-project 2.
+        function looksLikeOldLink(encoded) {
+            try {
+                const decoded = bytesToUtf8(urlSafeBase64ToBytes(encoded));
+                if (decoded.startsWith('{') || decoded.startsWith('%7B')) return true;
+                return decoded.split('|').length === 4;
+            } catch (e) {
+                return false;
+            }
+        }
+
         function decodeAssignment(encoded) {
             try {
                 const bytes = urlSafeBase64ToBytes(encoded);
@@ -1498,9 +1511,11 @@
                     }
                 } else {
                     const data = decodeAssignment(hash);
-                    
+
                     if (data) {
                         revealAssignment(data);
+                    } else if (looksLikeOldLink(hash)) {
+                        showError("This link was created with an older version of Simple Secret Santa. Ask the organiser for a new one.");
                     } else {
                         showError("Invalid Secret Santa link!");
                     }
