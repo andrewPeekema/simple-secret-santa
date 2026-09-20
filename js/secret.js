@@ -41,14 +41,17 @@ const xorDecrypt = xorEncrypt;
 // Four characters of [0-9a-z], drawn from crypto.getRandomValues.
 //
 // Why not Math.random(): the salt is the only value this app publishes that
-// comes from a generator, and the same Math.random() stream draws the shuffle
-// in js/assign.js that decides the pairings — the one secret here that
-// matters. Drawing the salt separately removes that link and costs nothing:
-// the salt stays 4 characters, so links stay the same length.
+// leaves the organiser's machine and comes from a generator (the sibling
+// per-link DOM element id built with Math.random() in js/ui/setup.js is
+// drawn from the same stream, but it never leaves that page), and the same
+// Math.random() stream draws the shuffle in js/assign.js that decides the
+// pairings — the one secret here that matters. Drawing the salt separately
+// removes that link and costs nothing: the salt stays 4 characters, so links
+// stay the same length.
 //
 // Bytes >= 252 are discarded rather than folded. 252 is the largest multiple
-// of 36 below 256, so every accepted byte maps to exactly one of 7 values per
-// character and the draw stays unbiased.
+// of 36 below 256, so each of the 36 characters receives exactly 7 of the
+// 252 accepted bytes and the draw stays unbiased.
 //
 // This value is NOT a secret. It is stored in plaintext inside every
 // participant's own assignment link, because it is the shared value that

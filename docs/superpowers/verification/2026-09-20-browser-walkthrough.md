@@ -12,6 +12,12 @@ Work was split across four tasks (2–5); each produced a findings note under
 `$SS_SCRATCH/notes/`. This report collates all four, plus the full-journey
 work done directly in this task, into the spec's checklist order.
 
+All Evidence paths below resolve under `$SS_SCRATCH`, a session-scoped
+scratch directory (see the path above). They were valid for the duration of
+this task's session and are not expected to persist afterward — the spec
+requires screenshots stay out of the repo, so a durable evidence path was
+never an option; a future verification pass will need to re-capture them.
+
 ## Checklist results
 
 | Check | What was done | Result | Evidence |
@@ -20,9 +26,9 @@ work done directly in this task, into the spec's checklist order.
 | **2. Wishlist creation screen** | From a real assignment link, clicked the real `Create Wishlist` button; read the two gift-wrap `<p>` lines verbatim; drove the 1500-char and 2000-char thresholds through the real `hintsText` input and `generateHintLink()`; measured the geometry of the gift-wrap line against `#hintLengthWarning` while the warning was visible. | **Pass.** Both gift-wrap lines present with 🎁 intact. `hintLengthWarning` `display: none` at 1499 chars, `block`/`"Note: 1501 characters may create a long URL."` at 1501. Collision check: `{"giftBottom":357.28,"warnTop":369.28,"gap":12,"overlap":false}` — 12px gap, confirmed by eye on the screenshot, not just the numbers. Declining the 2000-char `confirm()` (`__ssConfirmReturns=false`) correctly aborted generation (`confirm: Your hints are very long...` recorded, `hintLinkDisplay` stayed `none`); accepting it produced the link. | `$SS_SCRATCH/notes/02-wishlist-screen.md`; `$SS_SCRATCH/shots/02-wishlist-empty.png`, `$SS_SCRATCH/shots/02-length-warning.png`. |
 | **3. Post-creation message** | Generated a short, ordinary wishlist (`"Wool socks, a good mug, nothing electronic."`) and read `#hintLinkDisplay h3`, the gift-wrap `<p>`'s visibility/position, and the share line. | **Pass.** `#hintLinkDisplay h3` reads `Link Ready`. Gift-wrap line still `visible: true`, positioned above (`top: 321.28`) the new "Link Ready" block. Share line reads exactly `Share this with your group — it's wrapped so only your Secret Santa should peek.` | `$SS_SCRATCH/notes/02-wishlist-screen.md`; `$SS_SCRATCH/shots/03-link-ready.png`. |
 | **4. Name validation at the form** | Drove all eight required shapes (`\|Andrew`, `Andrew\|`, `And\|rew`, `\|`, `{Andrew`, `Andrew{`, `And{rew`, `{`) as person 1 through the real `generateSecretSanta()`, then a passing case with an apostrophe and two hyphens (`O'Brien` / `Mary-Jane` / `Jean-Luc P.`). | **Pass.** All eight reject shapes produced exactly one recorded `alert()`, `resultsShown: none`, and the correct reason (`Name cannot contain '\|'` or `Name cannot contain '{'`); the bare `\|`/`{` cases were rejected for the disallowed character, not the "must contain a letter or number" check, confirming `getInvalidNameReason()`'s check order. The apostrophe/hyphen case produced no dialogs, `results: block`, and all three names preserved (`["O'Brien","Mary-Jane","Jean-Luc P."]`). | `$SS_SCRATCH/notes/04-name-validation.md`; `$SS_SCRATCH/shots/04-apostrophe-hyphen-ok.png` (see Not Verified — this frame shows the form, not the scrolled results). |
-| **5. Five-character password retry** | The spec's own example name, `Kathryn`, is unrealisable (see Not Verified #5). Found `Olivia` instead: for every one of the 1,679,616 possible 4-character salts, `simpleHash('pair-Olivia-' + salt)` is exactly 5 raw base-36 characters, so `padStart(6,'0')` adds a leading zero unconditionally. Used salt `0000` → password `0fn288`. Built a real assignment link with Olivia as giver, created a wishlist through the real UI, then entered the password without its leading zero (`fn288`) on the `#h-` link. | **Pass.** `tryDecodeHintsWithPassword()`'s `'0'`-prefix retry decoded the wishlist: `"Wishlist Decoded\n\n... A cozy blanket, dark chocolate, and a new paperback novel."` Console clean (`{"errs":[],"dialogs":[]}`). | `$SS_SCRATCH/notes/05-password-retry.md`; `$SS_SCRATCH/shots/05-assignment-leading-zero.png`, `$SS_SCRATCH/shots/05-five-char-retry.png`. |
+| **5. Five-character password retry** | The spec's own example name, `Kathryn`, is unrealisable (see Spec corrections, below). Found `Olivia` instead: for every one of the 1,679,616 possible 4-character salts, `simpleHash('pair-Olivia-' + salt)` is exactly 5 raw base-36 characters, so `padStart(6,'0')` adds a leading zero unconditionally. Used salt `0000` → password `0fn288`. Built a real assignment link with Olivia as giver, created a wishlist through the real UI, then entered the password without its leading zero (`fn288`) on the `#h-` link. | **Pass.** `tryDecodeHintsWithPassword()`'s `'0'`-prefix retry decoded the wishlist: `"Wishlist Decoded\n\n... A cozy blanket, dark chocolate, and a new paperback novel."` Console clean (`{"errs":[],"dialogs":[]}`). | `$SS_SCRATCH/notes/05-password-retry.md`; `$SS_SCRATCH/shots/05-assignment-leading-zero.png`, `$SS_SCRATCH/shots/05-five-char-retry.png`. |
 | **6. Both clipboard paths** | Exercised `navigator.clipboard.writeText` (the real path, requiring document focus and a trusted click — a plain synthetic `.click()` left the promise hanging, worked around with `Page.bringToFront` + `Input.dispatchMouseEvent`) and the `execCommand('copy')` fallback (hid `navigator.clipboard` first), plus `copyAllLinks()`. | **Pass at the UI/promise-resolution level; clipboard contents not verified** (see Not Verified #2). Real path: button flipped to `Copied!` on `rgb(56, 161, 105)` (`#38a169`), no dialog. Fallback path: same `Copied!`/green, no "Failed to copy" dialog. Copy All Links: `Copied!`, no dialogs, `count: 3`. | `$SS_SCRATCH/notes/06-clipboard.md`; `$SS_SCRATCH/shots/06-copied-state.png`, `$SS_SCRATCH/shots/06-copy-all.png`. |
-| **7. Wrong password** | Entered several wrong passwords against a real wishlist link and read both the page and the console. First round used a 58-character plaintext that stores uncompressed (format byte `0x00`) and found the console clean for all shapes. Re-tested with a 943-character repetitive plaintext confirmed (in Node, before use) to store compressed (format byte `0x01`), against three wrong-password shapes. | **Partial — page correct, console criterion FAILS.** The spec's item 7 is a conjunction ("the error screen shows **and** the console stays free of uncaught errors"); only the first half holds. Page: every shape, both rounds, showed the exact expected text `Invalid password. Only the assigned Secret Santa has the correct password.` Console: a real defect was found and reproduced — see "Defect" below — so the console half of the check fails. Against the compressed wishlist, password `0zzzzz` (first character matches the real `0fn288`, format byte survives corruption) produced three console entries; `0fn289` (also first-character-matching) and `zzzzzz` (format byte corrupted to an unrecognized value) stayed clean. | `$SS_SCRATCH/notes/07-wrong-password.md`; `$SS_SCRATCH/shots/07b-wrong-0fn289.png`, `$SS_SCRATCH/shots/07b-wrong-0zzzzz.png`, `$SS_SCRATCH/shots/07b-wrong-zzzzzz.png`. |
+| **7. Wrong password** | Entered several wrong passwords against a real wishlist link and read both the page and the console. First round used a 58-character plaintext that stores uncompressed (format byte `0x00`) and found the console clean for all shapes. Re-tested with a 943-character repetitive plaintext confirmed (in Node, before use) to store compressed (format byte `0x01`), against three wrong-password shapes. | **Partial — page correct, console criterion FAILS.** The spec's item 7 is a conjunction ("the error screen shows **and** the console stays free of uncaught errors"); only the first half holds. Page: every shape, both rounds, showed the exact expected text `Invalid password. Only the assigned Secret Santa has the correct password.` Console: a real defect was found and reproduced — see "Defect" below — so the console half of the check fails. Against the compressed wishlist, password `0zzzzz` (first character matches the real `0fn288`, format byte survives corruption) produced three console entries; `0fn289` (also first-character-matching) and `zzzzzz` (format byte corrupted to an unrecognized value) stayed clean. | `$SS_SCRATCH/notes/07-wrong-password.md`; `$SS_SCRATCH/shots/07b-wrong-0fn289.png`, `$SS_SCRATCH/shots/07b-wrong-0zzzzz.png`, `$SS_SCRATCH/shots/07b-wrong-zzzzzz.png` (`0fn289` and `zzzzzz` are byte-identical to their round-1 counterparts — the "Invalid password" page renders the same regardless of which wrong link produced it — so only `0zzzzz` is visually distinct from the other two). |
 | **8. Full journey, zero console errors** | Generated for Andrew/Kathryn/Beatrix; opened all three assignment links and read giver/receiver/password off each; confirmed the payload length; created a wishlist from Kathryn's own link and decoded it from Kathryn's Santa's (Andrew's) page; opened the retired-format link; ran `errs` after every navigation. | **Pass — the journey driven here was clean.** Every `errs` call after every navigation in this journey returned `{"errs":[],"dialogs":[]}`. **Payload length: 26 characters** (see below — this is the number the spec asks for; 79 is the deployed-URL figure). Invariant held: nobody is their own recipient (Andrew→Kathryn, Kathryn→Beatrix, Beatrix→Andrew in one run), and the three recipients are the three participants. Retired link decoded to `{"heading":"Invalid Link","message":"This link was created with an older version of Simple Secret Santa. Ask the organiser for a new one."}`. This journey does not include a wrong-password step; that path's console errors are a separately-documented, known defect (item 7, above) and are not counted against this item. | This task's own CDP session (commands and output below); screenshots `$SS_SCRATCH/shots/08-three-links.png`, `08-andrew-link.png`, `08-kathryn-link.png`, `08-beatrix-link.png`, `08-wishlist-decoded.png`, `08-old-link.png`. |
 
 ### Item 8 detail — the payload-length and journey evidence
@@ -56,11 +62,20 @@ before the UI check: `encodeAssignment({giver:'Andrew', receiver:'Kathryn',
 salt:'ab12'})` → `QW5kcmV3fEthdGhyeW58YWIxMg` (`Andrew|Kathryn|ab12`), also
 length 26.
 
-**The spec's "79 characters" is the deployed GitHub Pages URL length**
-(`https://<user>.github.io/simple-secret-santa/index.html#<26-char payload>`
-is materially longer than `http://localhost:8000/index.html#<payload>`,
-which measured `urlLength: 59` here). The local number differs from 79
-because the local origin and path are shorter, not because the payload
+**The spec's "79 characters" is confirmed as the deployed GitHub Pages URL
+length, exactly.** `displayResults()` builds each link as `window.location.origin
++ window.location.pathname + '#' + payload` (`js/ui/setup.js:175`), and a
+GitHub Pages visitor lands on the directory URL, not `index.html`, so
+`pathname` is `/simple-secret-santa/`. That makes the deployed template
+`https://<user>.github.io/simple-secret-santa/#<26-char payload>`: measured
+directly for this repo's Pages URL,
+`https://andrewpeekema.github.io/simple-secret-santa/#QW5kcmV3fEthdGhyeW58YWIxMg`
+is **79 characters** — 53 for
+`https://andrewpeekema.github.io/simple-secret-santa/#` plus the 26-character
+payload. (Appending `index.html` before the `#`, as an earlier draft of this
+report did, measures 89, not 79.) The local number differs from 79 because
+the localhost origin and path are shorter (`http://localhost:8000/index.html#`
+is 33 characters, giving `urlLength: 59` here), not because the payload
 differs — the payload is the same 26 characters `encodeAssignment` always
 produces for this name/salt length.
 
@@ -118,7 +133,7 @@ errs → {"errs":[],"dialogs":[]}
 - Nothing was installed; the emulator, `adb`, and Firefox were all already
   present on the host, per the Global Constraints.
 
-## Not verified
+## Not Verified
 
 1. **`alert()` and `confirm()` were captured by an override, not clicked.**
    `cdp.mjs`'s injected hooks replace `window.alert`/`window.confirm` before
@@ -154,18 +169,25 @@ errs → {"errs":[],"dialogs":[]}
    high-contrast tonal range of the mobile screenshots. Not re-verified in
    this task; recorded here because it is exactly the kind of result that
    looks like a defect at a glance.
-5. **The spec's item 5 example name, `Kathryn`, is unrealisable.** No salt in
+5. **Only one browser/device combination was exercised.** Chrome for Android
+   on the `Pixel9_API34` emulator (devicePixelRatio 2.625, 411 CSS px
+   viewport) for the whole interactive walk-through, plus one static
+   desktop-width Firefox render. No other browser (Safari, real Chrome
+   desktop, Edge) and no physical device were tried.
+
+(The spec's own item 5 example, `Kathryn`, turned out to be unrealisable —
+that is a defect in the spec, not a verification gap, so it has been moved
+to "Spec corrections" below.)
+
+## Spec corrections
+
+1. **The spec's item 5 example name, `Kathryn`, is unrealisable.** No salt in
    `[0-9a-z]{4}` gives `Kathryn` a leading-zero password: `simpleHash('pair-
    Kathryn-' + salt)` is always exactly 6 raw base-36 characters across the
    full 1,679,616-salt space, so `padStart(6,'0')` never has anything to
    pad. `Olivia`/salt `0000` was substituted (password `0fn288`); for
    `Olivia`, the raw hash is always exactly 5 characters, so *every* salt
    gives her a leading-zero password, not just the one used here.
-6. **Only one browser/device combination was exercised.** Chrome for Android
-   on the `Pixel9_API34` emulator (devicePixelRatio 2.625, 411 CSS px
-   viewport) for the whole interactive walk-through, plus one static
-   desktop-width Firefox render. No other browser (Safari, real Chrome
-   desktop, Edge) and no physical device were tried.
 
 ## Defect found: a wrong password against a compressed wishlist leaves console errors
 
