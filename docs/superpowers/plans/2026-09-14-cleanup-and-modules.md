@@ -67,6 +67,11 @@ Stop and ask the user — do not rule on these yourself:
 - Consumes: nothing.
 - Produces: `loadV0()` from `test/harness-v0.mjs`, returning `{ encodeAssignment, decodeAssignment, encodeHints, decodeHints, simpleHash, crc16, xorEncrypt, compressBytes, decompressBytes }`. `test/fixtures/v0-links.json` with shape `{ salt: string, assignments: [{giver, receiver, salt, encoded}], wishlists: [{label, plaintext, password, encoded}], legacy: {pipe4Field, jsonFormat, urlEncodedJson} }`.
 
+**Both directions are pinned.** The decode assertion proves old links still open; the encode
+assertion proves this code still *produces* the same links. Without the second one an encoder
+regression — reintroduced base64 padding, a changed separator — passes every task in this plan with a
+green suite, because nothing else in the suite ever compares encoder output to a fixture.
+
 **IMPORTANT — these are characterisation tests, not TDD.** They describe behaviour that already exists, so they must **pass on the first run** against unmodified `index.html`. That passing is the verification that the harness is wired correctly. Do not expect a red phase in this task.
 
 - [ ] **Step 1: Create `package.json`**
@@ -193,6 +198,8 @@ test('every assignment fixture round-trips', () => {
     const decoded = api.decodeAssignment(f.encoded);
     assert.deepEqual(decoded, { giver: f.giver, receiver: f.receiver, salt: f.salt },
       'failed for giver ' + f.giver);
+    assert.equal(api.encodeAssignment({ giver: f.giver, receiver: f.receiver, salt: f.salt }), f.encoded,
+      'encoder drifted for giver ' + f.giver);
   }
 });
 
@@ -828,7 +835,12 @@ test('utf8 round-trips, including non-ASCII', () => {
 });
 
 test('base64url output is url-safe and unpadded', () => {
-  const bytes = new Uint8Array([251, 255, 190, 0, 1, 2]);
+  // Five bytes, deliberately NOT a multiple of three: plain base64 of this input is
+  // `+/++AAE=`, so the `=` half of the assertion below can actually fire. A 6-byte
+  // input produces no padding at all, which would let an encoder that forgot
+  // `.replace(/=/g, '')` pass unnoticed — the round-trip test cannot catch it either,
+  // because its decoder re-pads before calling atob.
+  const bytes = new Uint8Array([251, 255, 190, 0, 1]);
   const encoded = bytesToUrlSafeBase64(bytes);
   assert.ok(!/[+/=]/.test(encoded), 'found +, / or = in ' + encoded);
 });
