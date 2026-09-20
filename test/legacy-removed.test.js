@@ -28,3 +28,12 @@ test('legacyDecode is gone from the source', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(!html.includes('function legacyDecode'), 'legacyDecode still present');
 });
+
+test('legacy password fallbacks are gone, transcription leniency is kept', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(!html.includes("text.startsWith('VALID:')"), 'VALID: prefix still present');
+  assert.ok(!html.includes('.isLegacy'), 'isLegacy branch still present');
+  assert.ok(!html.includes("enteredPassword.startsWith('0')"), 'zero-stripping still present');
+  assert.equal(html.split('enteredPassword.length === 5').length - 1, 1,
+    'the five-character transcription retry must remain, exactly once');
+});

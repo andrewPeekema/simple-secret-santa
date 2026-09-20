@@ -1399,80 +1399,38 @@
             // Helper function to validate and extract hints from decrypted bytes
             function validateHints(bytes) {
                 if (!bytes || bytes.length < 3) return null;
-                
-                // Try CRC16 validation (new format): first 2 bytes are checksum
+
+                // CRC16 validation: first 2 bytes are the checksum
                 const storedCrc = (bytes[0] << 8) | bytes[1];
                 const payload = bytes.slice(2);
                 const calculatedCrc = crc16(payload);
-                
+
                 if (storedCrc === calculatedCrc) {
                     return bytesToUtf8(payload);
                 }
-                
-                // Try VALID: prefix (backward compatibility)
-                try {
-                    const text = bytesToUtf8(bytes);
-                    if (text.startsWith('VALID:')) {
-                        return text.substring(6);
-                    }
-                } catch (e) {}
-                
+
                 return null;
             }
             
             try {
                 let hints = null;
-                
-                if (encryptedBytes.isLegacy) {
-                    // Legacy format: no compression header, direct XOR, uses VALID: prefix
-                    const decryptedBytes = xorDecrypt(encryptedBytes, enteredPassword);
-                    hints = validateHints(decryptedBytes);
-                    
-                    // Try padded password if needed (user omitted a leading zero)
-                    if (!hints && enteredPassword.length === 5) {
-                        const paddedPassword = '0' + enteredPassword;
-                        const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
-                        hints = validateHints(decryptedBytes2);
-                    }
-                    
-                    // Try removing leading zeros (old wishlists encrypted without padStart)
-                    if (!hints && enteredPassword.startsWith('0')) {
-                        let stripped = enteredPassword;
-                        while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
-                            stripped = stripped.substring(1);
-                            const decryptedBytes3 = xorDecrypt(encryptedBytes, stripped);
-                            hints = validateHints(decryptedBytes3);
-                        }
-                    }
-                } else {
-                    // New format: has compression header
-                    const decryptedBytes = xorDecrypt(encryptedBytes, enteredPassword);
-                    const decompressed = await decompressBytes(decryptedBytes);
-                    if (decompressed) {
-                        hints = validateHints(decompressed);
-                    }
-                    
-                    // Try padded password if needed (user omitted a leading zero)
-                    if (!hints && enteredPassword.length === 5) {
-                        const paddedPassword = '0' + enteredPassword;
-                        const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
-                        const decompressed2 = await decompressBytes(decryptedBytes2);
-                        if (decompressed2) {
-                            hints = validateHints(decompressed2);
-                        }
-                    }
-                    
-                    // Try removing leading zeros (old wishlists encrypted without padStart)
-                    if (!hints && enteredPassword.startsWith('0')) {
-                        let stripped = enteredPassword;
-                        while (stripped.startsWith('0') && stripped.length > 1 && !hints) {
-                            stripped = stripped.substring(1);
-                            const decryptedBytes3 = xorDecrypt(encryptedBytes, stripped);
-                            const decompressed3 = await decompressBytes(decryptedBytes3);
-                            if (decompressed3) {
-                                hints = validateHints(decompressed3);
-                            }
-                        }
+
+                const decryptedBytes = xorDecrypt(encryptedBytes, enteredPassword);
+                const decompressed = await decompressBytes(decryptedBytes);
+                if (decompressed) {
+                    hints = validateHints(decompressed);
+                }
+
+                // Retained deliberately: a six-character password transcribed by hand
+                // may lose a leading zero. This is usability, not legacy compatibility.
+                // Removed in sub-project 2, where fixed-length base32 passwords make
+                // the ambiguity impossible.
+                if (!hints && enteredPassword.length === 5) {
+                    const paddedPassword = '0' + enteredPassword;
+                    const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
+                    const decompressed2 = await decompressBytes(decryptedBytes2);
+                    if (decompressed2) {
+                        hints = validateHints(decompressed2);
                     }
                 }
                 
