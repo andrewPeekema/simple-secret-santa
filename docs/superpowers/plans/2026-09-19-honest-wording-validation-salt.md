@@ -41,6 +41,7 @@ Task 1 therefore also replaces that line with *"Only your Secret Santa gets the 
 | `README.md` | Replace the false unlock claim with the gift-wrapping paragraph | 1 |
 | `js/ui/wishlist.js` | Three copy strings (above box, under box, post-creation) + stale retry comment | 1 |
 | `js/format.js` | Stale comment only — no code change | 1 |
+| `index.html` | The same false claim in the static "How It Works" box, plus the honest paragraph | 1 |
 | `js/validate.js` | Reject `\|` and `{`; two new reason messages | 2 |
 | `test/validate.test.js` | Invert the two KNOWN BUG pins; add reason assertions | 2 |
 | `js/secret.js` | New pure `makeSalt()` | 3 |
@@ -193,8 +194,17 @@ Expected: `pass 30`, `fail 0`. No test touches this copy; a change here means yo
 
 - [ ] **Step 8: Verify no other absolute claim survives**
 
-Run: `grep -rn "can decode\|can unlock\|only the right Santa" README.md js/`
-Expected: exactly one match — the "has the password to decode it" line from Step 5. Any other match is a claim that needs softening; report it rather than editing beyond this task.
+Run: `grep -rn "can decode\|can unlock\|only the right Santa" README.md js/ index.html`
+Expected: **zero** matches.
+
+> **This gate was wrong twice in its first version and both errors cost a fix round.** It omitted
+> `index.html`, which carries its own copy of the "How It Works" list and held the identical false
+> claim; and it predicted "exactly one match" on the theory that *"has the password to decode it"*
+> would match `can decode`, which it does not. The lesson generalises: when a task is defined by a
+> **property of the codebase** ("no false privacy claim anywhere") rather than by a file list, derive
+> the scope from a repo-wide search before writing the file list, not from the files you happen to
+> have open. Matches inside `docs/` are expected and correct — the spec and this plan quote the old
+> copy deliberately as before-text.
 
 - [ ] **Step 9: Commit**
 
