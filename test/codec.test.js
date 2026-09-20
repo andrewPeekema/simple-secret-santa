@@ -9,7 +9,7 @@ test('utf8 round-trips, including non-ASCII', () => {
 });
 
 test('base64url output is url-safe and unpadded', () => {
-  const bytes = new Uint8Array([251, 255, 190, 0, 1, 2]);
+  const bytes = new Uint8Array([251, 255, 190, 0, 1]);
   const encoded = bytesToUrlSafeBase64(bytes);
   assert.ok(!/[+/=]/.test(encoded), 'found +, / or = in ' + encoded);
 });

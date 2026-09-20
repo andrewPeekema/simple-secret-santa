@@ -11,6 +11,8 @@ test('every assignment fixture round-trips', () => {
     const decoded = api.decodeAssignment(f.encoded);
     assert.deepEqual(decoded, { giver: f.giver, receiver: f.receiver, salt: f.salt },
       'failed for giver ' + f.giver);
+    assert.equal(api.encodeAssignment({ giver: f.giver, receiver: f.receiver, salt: f.salt }), f.encoded,
+      'encoder drifted for giver ' + f.giver);
   }
 });
 
