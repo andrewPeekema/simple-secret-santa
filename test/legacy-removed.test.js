@@ -29,7 +29,7 @@ test('legacyDecode is gone from the source', async () => {
 });
 
 test('legacy password fallbacks are gone, transcription leniency is kept', async () => {
-  const html = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../js/ui/wishlist.js', import.meta.url), 'utf8');
   assert.ok(!html.includes("text.startsWith('VALID:')"), 'VALID: prefix still present');
   assert.ok(!html.includes('.isLegacy'), 'isLegacy branch still present');
   assert.ok(!html.includes("enteredPassword.startsWith('0')"), 'zero-stripping still present');
