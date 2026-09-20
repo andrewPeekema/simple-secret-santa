@@ -42,6 +42,14 @@ const xorDecrypt = xorEncrypt;
 // slicing from index 2 drops the "0." and every remaining character is already
 // in the alphabet. padEnd covers the rare short draw — Math.random() can return
 // 0, whose base-36 form is just "0" with nothing after the point.
+//
+// This value is NOT a secret. It is stored in plaintext inside every
+// participant's own assignment link, because it is the shared value that
+// lets a giver and their recipient derive the same wishlist password
+// without ever communicating. Its entropy therefore buys no confidentiality
+// against anyone holding a link, and lengthening it would only lengthen
+// every link. Automated scanners flag this as weak randomness; that is a
+// false positive for a deliberately public namespacing value.
 function makeSalt() {
     return Math.random().toString(36).substring(2, 6).padEnd(4, '0');
 }

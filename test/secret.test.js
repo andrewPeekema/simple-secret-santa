@@ -38,8 +38,12 @@ test('makeSalt returns exactly four characters from [0-9a-z]', () => {
 });
 
 test('makeSalt is actually random, not a constant', () => {
-  // Without this, `return 'aaaa'` passes the test above.
+  // Without this, `return 'aaaa'` passes the length-and-alphabet test above.
+  // The bar is high on purpose: drawing 200 times from 36^4 = 1,679,616 values
+  // yields ~0.012 expected collisions, so a healthy generator returns ~200
+  // distinct. A generator restricted to a small pool fails here — 1,000
+  // possible values would average ~181, and 100 would average ~87.
   const seen = new Set();
   for (let i = 0; i < 200; i++) seen.add(makeSalt());
-  assert.ok(seen.size > 50, 'expected many distinct salts, got ' + seen.size);
+  assert.ok(seen.size > 190, 'expected ~200 distinct salts, got ' + seen.size);
 });
