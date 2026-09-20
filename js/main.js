@@ -1,5 +1,6 @@
 import { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes } from './codec.js';
 import { compressBytes, decompressBytes } from './compress.js';
+import { simpleHash, crc16, xorEncrypt, xorDecrypt } from './secret.js';
         // Store the secret salt used for this session
         let sessionSalt = Math.random().toString(36).substring(2, 15);
 
@@ -51,16 +52,6 @@ import { compressBytes, decompressBytes } from './compress.js';
             return arr;
         }
 
-        function simpleHash(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return Math.abs(hash).toString(36);
-        }
-
         // Validate participant names to prevent encoding issues
         // Allows: Unicode letters, numbers, spaces, apostrophes, hyphens, periods
         // Disallows: & < > and control characters (which cause HTML escaping mismatches)
@@ -87,22 +78,6 @@ import { compressBytes, decompressBytes } from './compress.js';
             if (/[\x00-\x1F\x7F]/.test(name)) return "Name contains invalid control characters";
             if (!/[\p{L}\p{N}]/u.test(name)) return "Name must contain at least one letter or number";
             return null;
-        }
-
-        // CRC16-CCITT for hint validation (replaces VALID: prefix, saves 4 bytes)
-        function crc16(bytes) {
-            let crc = 0xFFFF;
-            for (let i = 0; i < bytes.length; i++) {
-                crc ^= bytes[i] << 8;
-                for (let j = 0; j < 8; j++) {
-                    if (crc & 0x8000) {
-                        crc = (crc << 1) ^ 0x1021;
-                    } else {
-                        crc <<= 1;
-                    }
-                }
-            }
-            return crc & 0xFFFF;
         }
 
         // ============================================
@@ -143,18 +118,6 @@ import { compressBytes, decompressBytes } from './compress.js';
 
             return null;
         }
-
-        function xorEncrypt(bytes, key) {
-            const keyBytes = utf8ToBytes(key);
-            const result = new Uint8Array(bytes.length);
-            for (let i = 0; i < bytes.length; i++) {
-                result[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
-            }
-            return result;
-        }
-
-        // XOR is symmetric
-        const xorDecrypt = xorEncrypt;
 
         async function encodeHints(plaintext, password) {
             const plaintextBytes = utf8ToBytes(plaintext);
@@ -740,10 +703,11 @@ if (typeof document !== 'undefined') {
 export {
     encodeAssignment, decodeAssignment, looksLikeOldLink,
     encodeHints, decodeHints,
-    simpleHash, crc16, xorEncrypt, xorDecrypt,
     shuffle, isValidAssignment,
     isValidName, getInvalidNameReason,
 };
+
+export { simpleHash, crc16, xorEncrypt, xorDecrypt };
 
 export { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes };
 
