@@ -10,8 +10,9 @@ export function encodeAssignment(data) {
 }
 
 // Recognises links issued before the 2026 cleanup, so they can be reported
-// as outdated rather than as corrupt. Replaced by a version-byte check in
-// sub-project 2.
+// as outdated rather than as corrupt. A version-byte replacement was planned
+// for a v1 wire format; that format was dropped when the threat model
+// narrowed, so this shape-based check is the permanent one.
 export function looksLikeOldLink(encoded) {
     try {
         const decoded = bytesToUtf8(urlSafeBase64ToBytes(encoded));

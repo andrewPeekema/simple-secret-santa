@@ -8,7 +8,9 @@ How it works:
 1. Generate pairings by entering participant names
 2. Share each link privately with the right person
 3. Each person sees their assignment and gets a wishlist password
-4. Wishlists are optional — if shared, only the right Santa can unlock them
+4. Wishlists are optional — if shared, they're gift-wrapped for the right Santa
+
+Wishlists are gift-wrapped, not locked in a vault. Wrapping paper stops accidental peeking — it won't stop a determined snoop with scissors, so maybe leave your bank PIN off the list. 🎁
 
 This site doesn't store or collect any data — everything runs locally in your browser.
 

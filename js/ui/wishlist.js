@@ -29,9 +29,12 @@ export function showCreateHints(recipientName, salt) {
         <h1>Your Wishlist</h1>
         <div class="hints-box">
             <p style="margin-bottom: 14px; font-size: 13px;">
-                Only your Secret Santa can decode this.
+                Only your Secret Santa gets the password.
             </p>
             <textarea id="hintsText" placeholder="Gift ideas, preferences, sizes, favorite things..."></textarea>
+            <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+                Gift-wrapped, not vault-locked 🎁 — keep the bank PINs off your list.
+            </p>
             <p id="hintLengthWarning" style="display: none; color: var(--error); font-size: 12px;"></p>
             <button class="create-hints-btn" onclick="generateHintLink()">
                 Generate Link
@@ -79,7 +82,7 @@ export async function generateHintLink() {
         <div class="hint-link-display">
             <h3>Link Ready</h3>
             <p style="font-size: 13px; margin: 10px 0;">
-                Share this with your group. Only your Secret Santa can decode it.
+                Share this with your group — it's wrapped so only your Secret Santa should peek.
             </p>
             <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 6px;">
             <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Link</button>
@@ -172,8 +175,9 @@ export async function tryDecodeHintsWithPassword() {
 
         // Retained deliberately: a six-character password transcribed by hand
         // may lose a leading zero. This is usability, not legacy compatibility.
-        // Removed in sub-project 2, where fixed-length base32 passwords make
-        // the ambiguity impossible.
+        // An earlier plan removed this once base32 passwords made the ambiguity
+        // impossible; that format was dropped, so passwords are still typed and
+        // this affordance is retained indefinitely.
         if (!hints && enteredPassword.length === 5) {
             const paddedPassword = '0' + enteredPassword;
             const decryptedBytes2 = xorDecrypt(encryptedBytes, paddedPassword);
