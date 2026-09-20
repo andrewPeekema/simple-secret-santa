@@ -1,3 +1,4 @@
+import { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes } from './codec.js';
         // Store the secret salt used for this session
         let sessionSalt = Math.random().toString(36).substring(2, 15);
 
@@ -131,32 +132,6 @@
             return div.innerHTML;
         }
 
-        function utf8ToBytes(str) {
-            return new TextEncoder().encode(str);
-        }
-
-        function bytesToUtf8(bytes) {
-            return new TextDecoder().decode(bytes);
-        }
-
-        function bytesToUrlSafeBase64(bytes) {
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-        }
-
-        function urlSafeBase64ToBytes(str) {
-            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4) base64 += '=';
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            return bytes;
-        }
 
         async function copyToClipboard(text, button) {
             try {
@@ -889,3 +864,5 @@ export {
     shuffle, isValidAssignment,
     isValidName, getInvalidNameReason,
 };
+
+export { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes };
