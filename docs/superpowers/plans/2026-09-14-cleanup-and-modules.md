@@ -1451,8 +1451,14 @@ import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta,
 ```
 
 `revealAssignment` is still in `js/main.js` at this point and reads the bare name `sessionSalt`,
-whose declaration has just moved into `setup.js`. Replace both of its references — the two
-`data.salt || sessionSalt` expressions — with `data.salt || getSessionSalt()` **now**, in this task.
+whose declaration has just moved into `setup.js`. Replace **all three** of its references — three
+`data.salt || sessionSalt` expressions, feeding `hintPassword`, `safeSalt` and `window.revealData.salt`
+respectively — with `data.salt || getSessionSalt()` **now**, in this task.
+
+**There are three, not two.** An earlier version of this plan said two. Verify with
+`grep -c 'data.salt || sessionSalt' js/main.js` before and after: it must read 3, then 0. Missing one
+leaves an undeclared identifier in a module, which throws `ReferenceError` the moment anyone opens an
+assignment link — and `revealAssignment` is DOM-bound, so no test in this suite would catch it.
 Do not defer it to Task 15: leaving the bare name would work only by accident, because
 `decodeAssignment` always returns a truthy `salt` and `||` short-circuits before evaluating it.
 Task 15 then moves code that is already correct.
@@ -1497,7 +1503,10 @@ import { simpleHash } from '../secret.js';
 import { getSessionSalt } from './setup.js';
 ```
 
-Replace its bare references to `sessionSalt` with `getSessionSalt()`. There are two, both inside `data.salt || sessionSalt` expressions.
+Task 14 already replaced `revealAssignment`'s three `data.salt || sessionSalt` expressions with
+`data.salt || getSessionSalt()`, so this is a move of already-correct code. Confirm with
+`grep -c 'sessionSalt' js/ui/reveal.js` that only `getSessionSalt()` calls remain — a bare
+`sessionSalt` here is an undeclared identifier that no test can catch.
 
 - [ ] **Step 2: Create `js/ui/wishlist.js`**
 
