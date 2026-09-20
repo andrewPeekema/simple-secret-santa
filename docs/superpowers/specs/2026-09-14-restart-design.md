@@ -253,15 +253,36 @@ under *Design*. Three small tasks, no separate plan document: handed to the
 lead as a follow-up on the same branch once sub-project 1 is complete, so the
 user reviews and merges once. No format break, so no deploy window to respect.
 
-**Sub-project 3 — sharing UX.** Deferred, and the next real brainstorm —
-ease of use for relatives is where the remaining value is. Revisit with a tested codebase
-underneath. The options explored: a pass-the-device in-person mode that needs
-no links at all, and `navigator.share()` for one-tap-per-person remote
-sending. QR was considered and set aside — it is a device-to-device channel,
-useless when one person generates every link on a single phone, and it would
-require a vendored local encoder, since an external QR API would transmit the
-secret links to a third party and destroy the property the fragment
-architecture exists to protect.
+**Sub-project 3 — sharing UX.** **Deferred by the user, 2026-09-20.** Not
+scheduled. A design was worked out on 2026-09-19 and is recorded here so it
+need not be rediscovered:
+
+- *Pass-the-device mode:* **dropped.** Every exchange so far has been remote.
+- *Share buttons:* `navigator.share()` behind feature detection, beside the
+  existing Copy Link buttons on the results rows and the wishlist screen; the
+  link goes inside the message text (some targets drop `url` or `text`); a
+  lasting "Sent ✓" per row. One tap per person is the ceiling — the browser
+  needs a gesture per share and the page never sees contacts. Works on phones,
+  Safari, and Chrome/Edge on Windows; not on Firefox desktop or Chrome on
+  Linux, where the Copy buttons remain the whole story. Message building and
+  feature detection would live in a DOM-free `js/share.js`, since only pure
+  modules are testable here.
+- *Known risk this would also have addressed — the draw is not persisted.*
+  The generated draw lives only in memory (`sessionSalt` and
+  `window.generatedLinks` in `js/ui/setup.js`); there is no storage and no
+  `beforeunload` guard. If the organiser's tab reloads mid-send — mobile
+  browsers discard background tabs routinely — the unsent links are gone, and
+  generating again yields a different draw and salt, so the group ends up
+  holding links from two incompatible draws with no warning. The proposed fix:
+  keep the draw in `sessionStorage`, restore it on load, add a "Start over"
+  button, and confirm before regenerating over an existing draw. This is a
+  correctness risk independent of the Share button and is the part most worth
+  picking up first if this sub-project is revived.
+- *QR:* considered and set aside — it is a device-to-device channel, useless
+  when one person generates every link on a single phone, and it would require
+  a vendored local encoder, since an external QR API would transmit the secret
+  links to a third party and destroy the property the fragment architecture
+  exists to protect.
 
 ## Critic findings and their disposition
 
