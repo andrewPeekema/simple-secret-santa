@@ -39,10 +39,10 @@ export async function compressBytes(data) {
         // verbatim from the pre-split code. A rejection here therefore
         // escapes this try/catch entirely — in Node it terminates the
         // process, in a browser it is only a console error — rather than
-        // being caught below. This path is reachable from ordinary
-        // wrong-password use (see decompressBytes below), not only from
-        // corrupt data, so anyone adding a wrong-password test through the
-        // UI layer must add the await first.
+        // being caught below. The same pattern appears in decompressBytes
+        // below; that is the one reachable from ordinary wrong-password use
+        // (this function is only ever called with the owner's own correct
+        // password, via encodeHints in js/format.js).
         writer.write(data);
         writer.close();
 
@@ -97,6 +97,19 @@ export async function decompressBytes(data) {
         try {
             const stream = new DecompressionStream('deflate-raw');
             const writer = stream.writable.getWriter();
+            // writer.write/close are deliberately un-awaited (see the same
+            // pattern in compressBytes above). Here it is reachable from
+            // ordinary mistyped passwords, not just corrupt data: a wrong
+            // guess whose first character happens to match still leaves the
+            // format byte at 0x01, so garbage payload reaches
+            // DecompressionStream. The function still correctly returns
+            // null and the UI still shows "Invalid password", but the
+            // un-awaited rejection surfaces separately — in Node it
+            // terminates the process, in a browser it is a console error
+            // only. The deliberate five-character retry in
+            // js/ui/wishlist.js doubles the exposure. Anyone adding a
+            // wrong-password test through the UI layer must fix the await
+            // here first.
             writer.write(payload);
             writer.close();
 
