@@ -20,6 +20,8 @@
 - **The five-character password retry at `index.html:1507` is NOT legacy code.** It handles a user mis-transcribing a six-character password by dropping a leading zero. It stays until sub-project 2. Do not delete it in Task 4.
 - **Deletions are justified branch by branch, never by region.** Three retry branches sit in one cascade and share a shape; only two are legacy.
 - Commit after every task. Never commit with failing tests.
+- **Where a step gives a verbatim replacement block, that block is authoritative** over the line
+  range it cites and over any incidental comment or whitespace difference. Write the block as shown.
 - **Quoted anchor text is binding; line numbers are navigational only.** Deletions in Tasks 2–5 shift everything below them, so positions cited in Tasks 2, 4 and 7 no longer hold by the time those tasks run — including within Task 2 itself, which deletes bottom-up. Locate every edit by the anchor text the task quotes; where a task gives no anchor, `grep` for the distinctive string. Task 7 slices on the `<script>` and `</script>` markers, not on `673-1620`.
 
 ## Stop Conditions
@@ -47,7 +49,7 @@ Stop and ask the user — do not rule on these yourself:
 | `js/validate.js` | Participant name validation | 11 |
 | `js/assign.js` | Shuffle and derangement | 12 |
 | `js/format.js` | Assignment and wishlist payload encoding | 13 |
-| `js/ui/dom.js` | `escapeHtml`, clipboard, section switching | 14 |
+| `js/ui/dom.js` | `escapeHtml`, clipboard, error display | 14 |
 | `js/ui/setup.js` | Participant form, exclusions, results list | 14 |
 | `js/ui/reveal.js` | Assignment screen | 15 |
 | `js/ui/wishlist.js` | Wishlist create and view screens | 15 |
@@ -203,6 +205,9 @@ test('every wishlist fixture decrypts with its password', async () => {
   }
 });
 
+// The guess below must not drive the format byte to 0x01: with password 's921er'
+// and guess 'zzzzzz' byte 0 becomes 0x09, so decompressBytes returns the raw data
+// and this test is deterministic. Changing either string can break that.
 test('a wrong password does not yield the plaintext', async () => {
   const f = fixtures.wishlists[0];
   const payload = await api.decodeHints(f.encoded);
@@ -215,7 +220,12 @@ test('a wrong password does not yield the plaintext', async () => {
 - [ ] **Step 6: Run the suite — it must PASS immediately**
 
 Run: `npm test`
-Expected: `pass 3`, `fail 0`. If anything fails, the harness is wrong — fix it before continuing. Do not edit the fixtures to make tests pass.
+Expected: `pass 4`, `fail 0`. If anything fails, the harness is wrong — fix it before continuing. Do not edit the fixtures to make tests pass.
+
+The fourth "pass" is `test/harness-v0.mjs` itself: `node --test` globs `**/test/**/*.mjs`, so the
+harness runs as a zero-test file and scores a pass. That is expected, and it is why every count
+through Task 6 is one higher than the number of real tests. Task 7 deletes the harness, after which
+the counts equal the test count.
 
 - [ ] **Step 7: Commit**
 
@@ -295,8 +305,19 @@ At `:1436`, change `const encryptedData = window.currentEncryptedData;` to `cons
 
 Then replace every `encryptedData.bytes` inside `tryDecodeHintsWithPassword` with `encryptedBytes`. There are six, at `:1479`, `:1485`, `:1494`, `:1500`, `:1509` and `:1521`.
 
-Run: `grep -c 'encryptedData' index.html`
-Expected: `0`. A non-zero count means a reference was missed, and wishlist decoding will silently fail at runtime while the tests still pass — the golden wishlist test calls `decodeHints` and `xorEncrypt` directly and never goes through this function.
+**Also rename the property access at `:1477`** — `if (encryptedData.isLegacy) {` becomes
+`if (encryptedBytes.isLegacy) {`. This branch is deleted wholesale in Task 4, but it must not be
+left referencing a name that no longer exists: the resulting `ReferenceError` is swallowed by the
+`catch` at `:1544`, so every wishlist decode would report "Invalid password" while the unit tests
+stayed green. On a `Uint8Array` the property is simply `undefined`, so the correct non-legacy path
+runs and this commit remains independently shippable. Do **not** delete the `isLegacy` branch here —
+that would invalidate the `:1474-1528` anchor Task 4 replaces.
+
+Run: `grep -c 'encryptedData\.' index.html`
+Expected: `0`. A non-zero count means a property access was missed, and wishlist decoding will silently fail at runtime while the tests still pass — the golden wishlist test calls `decodeHints` and `xorEncrypt` directly and never goes through this function.
+
+The bare name `encryptedData` legitimately survives as a local inside `checkForReveal`'s `#h-` branch
+(`:1585-1588`), which is a different scope and still accurately named. Do not rename it.
 
 The cascade this touches is still the full legacy one; Task 4 replaces it wholesale. Updating the references here rather than there is what keeps every commit in this plan independently shippable.
 
@@ -307,7 +328,7 @@ Change the wishlist test body from `api.xorEncrypt(payload.bytes, f.password)` t
 - [ ] **Step 7: Run the full suite**
 
 Run: `npm test`
-Expected: `pass 5`, `fail 0`.
+Expected: `pass 6`, `fail 0`.
 
 - [ ] **Step 8: Smoke-test wishlist decoding**
 
@@ -387,7 +408,7 @@ Expected: no output.
 - [ ] **Step 6: Run the full suite**
 
 Run: `npm test`
-Expected: `pass 7`, `fail 0`. The four assignment fixtures in `golden.test.js` must still decode — they are three-field links and are unaffected.
+Expected: `pass 8`, `fail 0`. The four assignment fixtures in `golden.test.js` must still decode — they are three-field links and are unaffected.
 
 - [ ] **Step 7: Commit**
 
@@ -418,7 +439,7 @@ Append to `test/legacy-removed.test.js`:
 test('legacy password fallbacks are gone, transcription leniency is kept', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(!html.includes("text.startsWith('VALID:')"), 'VALID: prefix still present');
-  assert.ok(!html.includes('encryptedData.isLegacy'), 'isLegacy branch still present');
+  assert.ok(!html.includes('.isLegacy'), 'isLegacy branch still present');
   assert.ok(!html.includes("enteredPassword.startsWith('0')"), 'zero-stripping still present');
   assert.equal(html.split('enteredPassword.length === 5').length - 1, 1,
     'the five-character transcription retry must remain, exactly once');
@@ -482,7 +503,7 @@ Replace `index.html:1474-1528` — from `try {` down to and including the `}` th
 - [ ] **Step 5: Run the full suite**
 
 Run: `npm test`
-Expected: `pass 8`, `fail 0`.
+Expected: `pass 9`, `fail 0`.
 
 - [ ] **Step 6: Verify the retained branch by hand**
 
@@ -580,7 +601,7 @@ with:
 - [ ] **Step 5: Run the full suite**
 
 Run: `npm test`
-Expected: `pass 9`, `fail 0`.
+Expected: `pass 10`, `fail 0`.
 
 - [ ] **Step 6: Smoke-test in a browser**
 
@@ -601,7 +622,7 @@ git add index.html test/
 git commit -m "feat: tell holders of pre-2026 links to ask for a new one"
 ```
 
-**CHECKPOINT — sub-project 0 complete.** Confirm with `git diff --stat f0e0a91 -- index.html` that `index.html` has shrunk by roughly 110 lines. Stop here for review before starting Task 6.
+**CHECKPOINT — sub-project 0 complete.** Confirm with `git diff --stat f0e0a91 -- index.html` that `index.html` has shrunk by roughly 90 lines. (Task 2 removes ~29, Task 3 ~32, Task 4 ~42, and Task 5 adds back ~14. The spec's "~110" predates the Task 5 addition — do not go hunting for a missed deletion.) Stop here for review before starting Task 6.
 
 ---
 
@@ -632,7 +653,7 @@ Expected: `IDENTICAL`
 - [ ] **Step 3: Confirm the tests are unaffected**
 
 Run: `npm test`
-Expected: `pass 9`, `fail 0`. The harness slices on `<script>`, so moving CSS cannot affect it.
+Expected: `pass 10`, `fail 0`. The harness slices on `<script>`, so moving CSS cannot affect it.
 
 - [ ] **Step 4: Smoke-test**
 
@@ -705,15 +726,23 @@ if (typeof window !== 'undefined') {
         showCreateHints,
         generateHintLink,
         tryDecodeHintsWithPassword,
+        updateExclusionDropdowns,
     });
 }
 ```
 
-Before moving on, confirm that list is complete:
+`updateExclusionDropdowns` is in that list because of `index.html:1046`, inside `addPerson`'s
+innerHTML template: `onclick="this.parentElement.remove(); updateExclusionDropdowns();"`. It is the
+**second** call in the attribute, which is exactly the shape a first-identifier-only grep misses.
 
-Run: `grep -oE 'onclick="[a-zA-Z_][a-zA-Z0-9_]*' index.html js/main.js | sed 's/.*onclick="//' | sort -u`
+Before moving on, confirm that list is complete. This grep reads every call target in every handler,
+not just the first:
 
-Every name in that output other than `location` and `this` must appear in the `Object.assign` call. If one is missing, add it.
+Run: `grep -oE 'onclick="[^"]*"' index.html js/main.js | grep -oE '(^|[^.a-zA-Z0-9_$])[a-zA-Z_$][a-zA-Z0-9_$]*\(' | grep -oE '[a-zA-Z_$][a-zA-Z0-9_$]*' | sort -u`
+
+Expected: exactly the nine names in the `Object.assign` call above. Property accesses
+(`this.parentElement.remove`, `location.reload`) are filtered out by the leading-dot guard, so every
+name in the output must appear in the call. If one is missing, add it.
 
 - [ ] **Step 4: Export the pure functions**
 
@@ -852,7 +881,7 @@ Delete the four function definitions from `js/main.js` and add at the top:
 import { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes } from './codec.js';
 ```
 
-Remove those four names from the `export { ... }` block and re-export instead, so existing importers keep working:
+Task 7's `export { ... }` block never listed these four, so there is nothing to remove from it. Add a re-export so existing importers keep working:
 
 ```javascript
 export { utf8ToBytes, bytesToUtf8, bytesToUrlSafeBase64, urlSafeBase64ToBytes };
@@ -1031,6 +1060,10 @@ git commit -m "refactor: extract js/secret.js"
 
 Note the last case. `|` is currently *accepted* even though it is the field separator, which is the latent bug sub-project 2 fixes with length-prefixed names. This test documents today's behaviour deliberately; sub-project 2 will change it.
 
+Note also that the reject list uses `'a\x00b'` (a control character, barred by the `/[&<>\x00-\x1F\x7F]/`
+test at `index.html:893-905`) and **not** `'a b'`. Spaces are explicitly allowed — `isValidName('a b')`
+returns `true` today. Asserting otherwise would force a behaviour change, which this plan forbids.
+
 ```javascript
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -1044,7 +1077,7 @@ test('accepts ordinary and international names', () => {
 });
 
 test('rejects empty, overlong, markup and punctuation-only names', () => {
-  for (const n of ['', 'A'.repeat(51), 'a&b', 'a<b', 'a>b', '...', 'a b']) {
+  for (const n of ['', 'A'.repeat(51), 'a&b', 'a<b', 'a>b', '...', 'a\x00b']) {
     assert.equal(isValidName(n), false, 'should reject ' + JSON.stringify(n));
     assert.ok(getInvalidNameReason(n), 'should give a reason for ' + JSON.stringify(n));
   }
@@ -1310,7 +1343,21 @@ import { xorEncrypt } from '../js/secret.js';
 import { decompressBytes } from '../js/compress.js';
 ```
 
-Replace `api.xorEncrypt` with `xorEncrypt` and `api.decompressBytes` with `decompressBytes` throughout. In `test/legacy-removed.test.js`, the source-scanning assertions should now read `js/format.js`, except the `#hints-` route check, which should read `js/main.js`.
+Replace `api.xorEncrypt` with `xorEncrypt` and `api.decompressBytes` with `decompressBytes` throughout.
+
+In `test/legacy-removed.test.js`, re-point each source-scanning assertion at the file that actually
+owns the code it scans. They do not all move to the same place:
+
+| Assertion (from Task) | Reads | Why |
+|---|---|---|
+| `hash.startsWith('hints-')` (T2) | `js/main.js` | `checkForReveal` stays in `main.js` |
+| `encoded.startsWith('JTdC')` (T2) | `js/format.js` | `decodeHints` moved to `format.js` in this task |
+| `function legacyDecode` (T3) | `js/format.js` | decoding lives there now |
+| the password-fallback assertions (T4) | `js/main.js` | `tryDecodeHintsWithPassword` is still in `main.js`; it moves in Task 15 |
+
+The `JTdC` check currently sits inside the `#hints-` route test, which now reads a different file.
+Move that one assertion into the existing `legacyDecode is gone from the source` test, which already
+reads `js/format.js`. Do not add a new `test(...)` call — the suite must still report 30.
 
 - [ ] **Step 6: Run the full suite**
 
@@ -1364,8 +1411,15 @@ export function getSessionSalt() { return sessionSalt; }
 
 ```javascript
 import { escapeHtml, copyToClipboard, showError } from './ui/dom.js';
-import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks } from './ui/setup.js';
+import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks, getSessionSalt } from './ui/setup.js';
 ```
+
+`revealAssignment` is still in `js/main.js` at this point and reads the bare name `sessionSalt`,
+whose declaration has just moved into `setup.js`. Replace both of its references — the two
+`data.salt || sessionSalt` expressions — with `data.salt || getSessionSalt()` **now**, in this task.
+Do not defer it to Task 15: leaving the bare name would work only by accident, because
+`decodeAssignment` always returns a truthy `salt` and `||` short-circuits before evaluating it.
+Task 15 then moves code that is already correct.
 
 The `Object.assign(window, { ... })` block from Task 7 stays exactly as it is — the names it publishes are now imported rather than locally defined, which does not change how inline handlers resolve them.
 
@@ -1423,26 +1477,36 @@ import { bytesToUtf8 } from '../codec.js';
 
 The retained five-character transcription retry and its comment move across unchanged. Do not tidy it.
 
-- [ ] **Step 3: Wire them into `js/main.js`**
+- [ ] **Step 3: Re-point the password-fallback assertions at `js/ui/wishlist.js`**
+
+`tryDecodeHintsWithPassword` has just moved out of `js/main.js`. In `test/legacy-removed.test.js`,
+the four assertions Task 4 added — `VALID:`, `.isLegacy`, `enteredPassword.startsWith('0')`, and the
+count of `enteredPassword.length === 5` — must now read `new URL('../js/ui/wishlist.js', import.meta.url)`.
+
+The count assertion is the one that matters: it asserts the retained transcription retry appears
+**exactly once**, so if it scans a file that no longer contains the code it reads 0 and fails. Leaving
+it on `js/main.js` fails here; it was already re-pointed away from `js/format.js` in Task 13.
+
+- [ ] **Step 4: Wire them into `js/main.js`**
 
 ```javascript
 import { revealAssignment } from './ui/reveal.js';
 import { showCreateHints, generateHintLink, showViewHints, tryDecodeHintsWithPassword } from './ui/wishlist.js';
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [ ] **Step 5: Run the full suite**
 
 Run: `npm test`
 Expected: `pass 30`, `fail 0`.
 
-- [ ] **Step 5: Smoke-test the full wishlist journey**
+- [ ] **Step 6: Smoke-test the full wishlist journey**
 
 Run: `python3 -m http.server 8000`. Generate an exchange, open an assignment link, note the wishlist password, create a wishlist, generate its link, open that link, decode with the correct password, then reload and try a wrong password and confirm the error message appears.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add js/
+git add js/ test/
 git commit -m "refactor: extract js/ui/reveal.js and js/ui/wishlist.js"
 ```
 
@@ -1466,8 +1530,8 @@ Expected: under 80 lines. If it is much larger, something was not moved.
 
 - [ ] **Step 2: Confirm nothing is orphaned**
 
-Run: `grep -n 'function ' js/main.js`
-Expected: exactly two matches — `async function checkForReveal()` and the `function (e)` input listener inside the bootstrap guard added in Task 7. Any third match is code that should have moved to a module.
+Run: `grep -cE '\bfunction\b' js/main.js`
+Expected: exactly `2` — `async function checkForReveal()` and the anonymous input listener inside the bootstrap guard added in Task 7. This form matches whether the listener is written `function(e)` (as in the original source at `index.html:1614`) or `function (e)`. Any third match is code that should have moved to a module.
 
 - [ ] **Step 3: Document the new development workflow in `README.md`**
 
@@ -1499,7 +1563,7 @@ git commit -m "docs: record the local-server development workflow"
 
 ## Definition of Done
 
-Sub-project 0 is complete when `index.html` has shrunk by roughly 110 lines and `npm test` reports `pass 9`.
+Sub-project 0 is complete when `index.html` has shrunk by roughly 90 lines and `npm test` reports `pass 10` (nine real tests plus the zero-test harness file — see Task 1, Step 6).
 
 Sub-project 1 is complete when all of the following hold:
 
