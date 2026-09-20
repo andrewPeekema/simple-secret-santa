@@ -86,11 +86,16 @@ five-character retry, the shuffle and rejection sampling all stay as they are.
   to match, e.g. *"Share this with your group — it's wrapped so only your
   Secret Santa should peek."*
 
-**2. Reject `|` in names.** `isValidName` permits `|`, but `encodeAssignment`
-uses `|` as its separator, so a participant named `Bob|Ann` silently decodes
-to the wrong people. `js/validate.js` rejects `|`, and `getInvalidNameReason`
-gives a friendly message for it. The `KNOWN BUG` characterisation test added
-in sub-project 1 flips from `true` to `false` in the same commit.
+**2. Reject `|` and `{` in names.** `isValidName` permits both, and both
+produce links that cannot work. `encodeAssignment` uses `|` as its separator,
+so a participant named `Bob|Ann` silently decodes to the wrong people. And
+`decodeAssignment` refuses any payload beginning with `{`, so a giver named
+`{Bob}` gets a link that never decodes and tells them to ask the organiser
+for a new one — who regenerates the identical broken link. (Found by the
+sub-project 1 final review.) `js/validate.js` rejects both characters
+anywhere in a name, and `getInvalidNameReason` gives a friendly message. The
+`KNOWN BUG` characterisation tests pinned in sub-project 1 flip from `true`
+to `false` in the same commit.
 
 **3. Four-character salt.** The salt is
 `Math.random().toString(36).substring(2, 15)` — 10 or 11 characters. Under
@@ -180,8 +185,8 @@ a bigger win than every payload-encoding trick combined.
 Sub-projects 0–1 are covered by the golden fixtures and the per-module
 characterisation tests the plan specifies. Sub-project 2 adds:
 
-- **validate** — `|` is rejected with its reason message; the former
-  `KNOWN BUG` assertion is inverted.
+- **validate** — `|` and `{` are each rejected with a reason message; the
+  former `KNOWN BUG` assertions are inverted.
 - **salt** — a generated salt is exactly 4 characters from `[0-9a-z]`, over
   many draws.
 - **round trip** — an assignment built with a 4-character salt encodes,
@@ -243,7 +248,7 @@ boundaries shaped only by code that survives. Verified with the sub-project 0
 fixtures. Safe to merge and deploy on its own; it is what makes sub-project 2
 verifiable.
 
-**Sub-project 2 — honest wording, `|` fix, short salt.** The three changes
+**Sub-project 2 — honest wording, `|` and `{` fix, short salt.** The three changes
 under *Design*. Three small tasks, no separate plan document: handed to the
 lead as a follow-up on the same branch once sub-project 1 is complete, so the
 user reviews and merges once. No format break, so no deploy window to respect.
