@@ -2,9 +2,10 @@ import { escapeHtml, copyToClipboard } from './dom.js';
 import { encodeAssignment } from '../format.js';
 import { buildAssignment } from '../assign.js';
 import { isValidName, getInvalidNameReason } from '../validate.js';
+import { makeSalt } from '../secret.js';
 
 // Store the secret salt used for this session
-let sessionSalt = Math.random().toString(36).substring(2, 15);
+let sessionSalt = makeSalt();
 export function getSessionSalt() { return sessionSalt; }
 
 export function addPerson() {
@@ -131,7 +132,7 @@ export function generateSecretSanta() {
         }
     }
 
-    sessionSalt = Math.random().toString(36).substring(2, 15);
+    sessionSalt = makeSalt();
 
     const givers = [...people];
     const receivers = buildAssignment(people, exclusions);

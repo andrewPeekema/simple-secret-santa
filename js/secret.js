@@ -38,4 +38,12 @@ function xorEncrypt(bytes, key) {
 // XOR is symmetric
 const xorDecrypt = xorEncrypt;
 
-export { simpleHash, crc16, xorEncrypt, xorDecrypt };
+// Four characters of [0-9a-z]. Math.random().toString(36) yields "0.xxxx…", so
+// slicing from index 2 drops the "0." and every remaining character is already
+// in the alphabet. padEnd covers the rare short draw — Math.random() can return
+// 0, whose base-36 form is just "0" with nothing after the point.
+function makeSalt() {
+    return Math.random().toString(36).substring(2, 6).padEnd(4, '0');
+}
+
+export { simpleHash, crc16, xorEncrypt, xorDecrypt, makeSalt };

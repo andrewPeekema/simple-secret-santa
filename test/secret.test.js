@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { simpleHash, crc16, xorEncrypt, xorDecrypt } from '../js/secret.js';
+import { simpleHash, crc16, xorEncrypt, xorDecrypt, makeSalt } from '../js/secret.js';
 
 const enc = (s) => new TextEncoder().encode(s);
 
@@ -27,4 +27,19 @@ test('xor is symmetric and leaves length unchanged', () => {
   const other = xorEncrypt(plain, 'zzzzzz');
   assert.notDeepEqual(other, cipher, 'a different key must produce different ciphertext');
   assert.notDeepEqual(xorDecrypt(cipher, 'zzzzzz'), plain, 'the wrong key must not recover the plaintext');
+});
+
+test('makeSalt returns exactly four characters from [0-9a-z]', () => {
+  for (let i = 0; i < 2000; i++) {
+    const s = makeSalt();
+    assert.equal(s.length, 4, 'wrong length: ' + JSON.stringify(s));
+    assert.match(s, /^[0-9a-z]{4}$/, 'out-of-alphabet salt: ' + JSON.stringify(s));
+  }
+});
+
+test('makeSalt is actually random, not a constant', () => {
+  // Without this, `return 'aaaa'` passes the test above.
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) seen.add(makeSalt());
+  assert.ok(seen.size > 50, 'expected many distinct salts, got ' + seen.size);
 });
