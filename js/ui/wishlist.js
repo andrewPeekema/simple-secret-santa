@@ -2,11 +2,15 @@
 // from inside an onclick="..." string in a template below, resolved through
 // the window shim at click time. Kept here as the only greppable trace of
 // that dependency.
-import { escapeHtml, copyToClipboard } from './dom.js';
+import { escapeHtml, copyToClipboard, STARS_HTML } from './dom.js';
 import { encodeHints } from '../format.js';
 import { simpleHash, crc16, xorDecrypt } from '../secret.js';
 import { decompressBytes } from '../compress.js';
 import { bytesToUtf8 } from '../codec.js';
+
+const INVALID_PASSWORD_HTML = `
+            <div class="tint tint--danger note mt-3">Invalid password. Only the assigned Secret Santa has the correct password.</div>
+        `;
 
 export function showCreateHints(recipientName, salt) {
     document.getElementById('mainContainer').style.display = 'none';
@@ -19,28 +23,16 @@ export function showCreateHints(recipientName, salt) {
     window.hintSalt = salt;
 
     hintsSection.innerHTML = `
-        <div class="title-stars">
-            <span class="star-gold">✦</span>
-            <span class="star-ice">✦</span>
-            <span class="star-green">✦</span>
-            <span class="star-silver">✦</span>
-            <span class="star-red">✦</span>
+        ${STARS_HTML}
+        <h1>Your wishlist</h1>
+        <div id="hintsForm" class="left mt-5">
+            <textarea id="hintsText" class="in" placeholder="Gift ideas, preferences, sizes, favorite things…"></textarea>
+            <p class="note mt-2">Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
+            <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
+            <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
         </div>
-        <h1>Your Wishlist</h1>
-        <div class="hints-box">
-            <p style="margin-bottom: 14px; font-size: 13px;">
-                Only your Secret Santa gets the password.
-            </p>
-            <textarea id="hintsText" placeholder="Gift ideas, preferences, sizes, favorite things..."></textarea>
-            <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
-                Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁
-            </p>
-            <p id="hintLengthWarning" style="display: none; color: var(--error); font-size: 12px;"></p>
-            <button class="create-hints-btn" onclick="generateHintLink()">
-                Generate Link
-            </button>
-        </div>
-        <div id="hintLinkDisplay" style="display: none;"></div>
+        <div id="hintLinkDisplay" class="mt-5" style="display: none;"></div>
+        <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
     `;
 
     document.getElementById('hintsText').addEventListener('input', function() {
@@ -76,17 +68,16 @@ export async function generateHintLink() {
     const encoded = await encodeHints(hintsText, hintPassword);
     const hintUrl = window.location.origin + window.location.pathname + '#h-' + encoded;
 
+    // The link replaces the form (spec §5.5).
+    document.getElementById('hintsForm').style.display = 'none';
     const display = document.getElementById('hintLinkDisplay');
     display.style.display = 'block';
     display.innerHTML = `
-        <div class="hint-link-display">
-            <h3>Link Ready</h3>
-            <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 6px;">
-            <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Link</button>
-            <div class="info-box" style="margin-top: 14px;">
-                <strong style="color: var(--text-primary);">How it works</strong><br><br>
-                Anyone can open this link, but only your assigned Santa has the password to decode it.
-            </div>
+        <div class="tint">✓ Link ready</div>
+        <div class="left mt-3">
+            <input type="text" class="in in--url" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input">
+            <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy link</button>
+            <p class="note mt-3">Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</p>
         </div>
     `;
 }
@@ -102,30 +93,15 @@ export function showViewHints(encryptedBytes) {
     window.currentEncryptedBytes = encryptedBytes;
 
     viewHintsSection.innerHTML = `
-        <div class="title-stars">
-            <span class="star-gold">✦</span>
-            <span class="star-ice">✦</span>
-            <span class="star-green">✦</span>
-            <span class="star-silver">✦</span>
-            <span class="star-red">✦</span>
-        </div>
+        ${STARS_HTML}
         <h1>Wishlist</h1>
-        <div class="hints-box">
-            <p style="margin-bottom: 14px; font-size: 13px;">
-                Enter the password to decode this wishlist.
-            </p>
-            <input type="text" id="passwordInput" placeholder="Password" maxlength="6" style="text-transform: lowercase; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 1.1rem; text-align: center; letter-spacing: 0.15em;">
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-                Only the assigned Secret Santa is shown this password
-            </p>
-            <button class="create-hints-btn" onclick="tryDecodeHintsWithPassword()">
-                Decode
-            </button>
+        <div id="viewHintsForm" class="mt-5">
+            <p class="secondary">Enter the password from your assignment page.</p>
+            <input type="text" id="passwordInput" class="in in--password mt-3" placeholder="Password" maxlength="6">
+            <button class="btn btn--primary btn--block mt-3" onclick="tryDecodeHintsWithPassword()">Decode</button>
         </div>
-        <div id="decodedHints" style="margin-top: 16px;"></div>
-        <button onclick="location.href=location.pathname" style="margin-top: 16px;">
-            Back
-        </button>
+        <div id="decodedHints"></div>
+        <p class="nav"><button class="link" onclick="location.href=location.pathname">Back</button></p>
     `;
 }
 
@@ -185,25 +161,18 @@ export async function tryDecodeHintsWithPassword() {
         }
 
         if (hints) {
+            // The decoded list replaces the form (spec §5.6); on failure the
+            // form stays so the password can be retried.
+            document.getElementById('viewHintsForm').style.display = 'none';
             decodedDiv.innerHTML = `
-                <div class="success">
-                    <h3>Wishlist Decoded</h3>
-                    <div style="background: var(--bg-tertiary); padding: 14px; border-radius: 2px; margin-top: 10px; text-align: left; white-space: pre-wrap; border: 1px solid var(--border); color: var(--text-secondary); line-height: 1.6; font-size: 13px;">${escapeHtml(hints.trim())}</div>
-                </div>
+                <div class="tint mt-5">✓ Wishlist decoded</div>
+                <div class="wishlist-text mt-3">${escapeHtml(hints.trim())}</div>
             `;
         } else {
-            decodedDiv.innerHTML = `
-                <div class="error">
-                    Invalid password. Only the assigned Secret Santa has the correct password.
-                </div>
-            `;
+            decodedDiv.innerHTML = INVALID_PASSWORD_HTML;
         }
     } catch (e) {
         console.error('Decryption error:', e);
-        decodedDiv.innerHTML = `
-            <div class="error">
-                Invalid password. Only the assigned Secret Santa has the correct password.
-            </div>
-        `;
+        decodedDiv.innerHTML = INVALID_PASSWORD_HTML;
     }
 }

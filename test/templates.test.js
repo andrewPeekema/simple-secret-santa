@@ -16,11 +16,6 @@ const FILES = ['index.html', ...uiFiles];
 const sources = new Map(await Promise.all(FILES.map(async file => [file, await read(file)])));
 const css = (await read('css/styles.css')).replace(/\/\*[\s\S]*?\*\//g, '');
 
-// Files the visual-system plan has not converted yet: their checks run as
-// todo. Each task removes its files; the last task removes this set.
-const PENDING = new Set(['js/ui/wishlist.js']);
-const options = file => (PENDING.has(file) ? { todo: 'not yet converted' } : {});
-
 const COLOUR = /#[0-9a-f]{3,8}\b|rgba?\(/i;
 
 // Spec §3.4's removed boxes, plus the old button and header classes that
@@ -57,29 +52,36 @@ function classTokens(text) {
 const styled = token => new RegExp(`\\.${token}(?![\\w-])`).test(css);
 
 for (const [file, text] of sources) {
-  test(`${file}: the only inline style is display: none`, options(file), () => {
+  test(`${file}: the only inline style is display: none`, () => {
     for (const m of text.matchAll(/\bstyle\s*=\s*(["'])(.*?)\1/g)) {
       assert.match(m[2].trim(), /^display:\s*none;?$/, `${file}: style="${m[2]}"`);
     }
   });
 
-  test(`${file}: no colour literal (REQ-SSS-0010.2)`, options(file), () => {
+  test(`${file}: no colour literal (REQ-SSS-0010.2)`, () => {
     const m = text.match(COLOUR);
     assert.equal(m, null, `${file}: colour literal ${m && m[0]}`);
   });
 
-  test(`${file}: no removed class names`, options(file), () => {
+  test(`${file}: no removed class names`, () => {
     const used = classTokens(text);
     for (const name of REMOVED) assert.ok(!used.has(name), `${file}: class "${name}" is removed`);
   });
 
-  test(`${file}: every class it uses is styled`, options(file), () => {
+  test(`${file}: every class it uses is styled`, () => {
     for (const token of classTokens(text)) {
       if (JS_HOOKS.has(token)) continue;
       assert.ok(styled(token), `${file}: .${token} has no rule in css/styles.css`);
     }
   });
 }
+
+test('every class the stylesheet styles is used by the markup (no dead CSS)', () => {
+  const used = new Set();
+  for (const text of sources.values()) for (const token of classTokens(text)) used.add(token);
+  const selectors = new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map(m => m[1]));
+  for (const name of selectors) assert.ok(used.has(name), `.${name} is styled but never used`);
+});
 
 test('index.html loads only Libre Baskerville 400 and DM Sans 400 and 500', () => {
   const html = sources.get('index.html');
