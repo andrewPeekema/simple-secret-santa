@@ -75,6 +75,7 @@ screen, as the greeting in §5.3).</p>
 <tr><td>"How it works"</td><td>Summary at note size; two text colours inside (text-1 lead-ins, text-2 for everything else).</td></tr>
 <tr><td>Busyness</td><td>One container level per screen; hairline rules between sections; one primary button per screen; navigation as text links.</td></tr>
 <tr><td>Flows</td><td>Results replace the setup form; the wishlist link replaces the wishlist form. Both offer a text link back.</td></tr>
+<tr><td>Back on wishlist screens</td><td>Returns to the assignment (ruling B1, lead's recommendation, user 2026-10-04); the view-wishlist Back still goes to the setup page.</td></tr>
 <tr><td>Reveal note</td><td>"Keep this to yourself." removed (user, 2026-10-04).</td></tr>
 <tr><td>Remove buttons</td><td>Only on participant rows added beyond the first three (unchanged behaviour, now also the rule).</td></tr>
 </table>
@@ -249,7 +250,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <ol>
 <li>Stars; heading "Your wishlist".</li>
 <li>A left-aligned block: <code>textarea#hintsText.in</code> with the ellipsis placeholder; note "Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁"; <code>p#hintLengthWarning</code> as a note in <code>--danger</code>, hidden until needed; "Generate link" (primary, block).</li>
-<li>Text link "Back" (<code>location.href = location.pathname</code>).</li>
+<li>Text link "Back": returns to the giver's assignment &mdash; hides <code>#hintsSection</code> and shows <code>#revealSection</code>, whose content is still in the DOM because <code>showCreateHints()</code> only hid it. One inline <code>onclick</code>; no new function. (Ruling B1, 2026-10-04.)</li>
 </ol>
 
 <h3>5.5 Wishlist link ready (<code>#hintsSection</code>, after <code>generateHintLink()</code>)</h3>
@@ -257,7 +258,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <li>Stars; heading "Your wishlist" (unchanged from 5.4).</li>
 <li><code>.tint</code> "✓ Link ready".</li>
 <li><code>input#hint-link-input.in.in--url</code> read-only; "Copy link" (secondary, block); note "Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it."</li>
-<li>Text link "Back".</li>
+<li>Text link "Back", as in 5.4: back to the assignment.</li>
 </ol>
 <p><strong>Behaviour.</strong> The form block of 5.4 is wrapped in <code>div#hintsForm</code>, which <code>generateHintLink()</code> hides when it shows <code>#hintLinkDisplay</code>. The 1500-character warning and 2000-character confirm are unchanged.</p>
 
@@ -266,7 +267,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <li>Stars; heading "Wishlist".</li>
 <li>Body text-2 "Enter the password from your assignment page."; <code>input#passwordInput.in.in--password</code>, <code>maxlength="6"</code>, no <code>text-transform</code>; "Decode" (primary, block).</li>
 <li><code>#decodedHints</code>: on success, a <code>.tint</code> "✓ Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
-<li>Text link "Back" (<code>location.href = location.pathname</code>, as today).</li>
+<li>Text link "Back" (<code>location.href = location.pathname</code>, as today &mdash; someone who opened a wishlist link has no assignment screen behind it).</li>
 </ol>
 <p>The prompt, input and Decode button are wrapped in <code>div#viewHintsForm</code>. On success <code>tryDecodeHintsWithPassword()</code> hides it, so the decoded list replaces the form as in 5.5. On failure it stays, so the password can be retried.</p>
 
