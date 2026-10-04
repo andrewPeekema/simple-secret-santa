@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Visual System</title>
+<style>
+ :root{--ink:#1a1a1a;--mut:#5c6670;--line:#dfe3e8;--accent:#2f5d8a;--warn:#8a5a2f;--bg:#fbfcfd}
+ body{max-width:52rem;margin:0 auto;padding:2.5rem 1.5rem 6rem;background:var(--bg);color:var(--ink);
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif}
+ h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.02em}
+ h2{font-size:1.3rem;margin:2.6rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--line)}
+ h3{font-size:1.02rem;margin:1.6rem 0 .4rem;color:var(--accent)}
+ .byline{color:var(--mut);font-size:.9rem;margin-bottom:2rem}
+ table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+ th,td{border:1px solid var(--line);padding:.5rem .65rem;text-align:left;vertical-align:top}
+ th{background:#eef2f6;font-weight:600}
+ code{background:#eceff3;padding:.1rem .33rem;border-radius:3px;font-size:.88em;font-family:ui-monospace,Menlo,monospace}
+ pre{background:#1f2530;color:#e6edf3;padding:.9rem 1.1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+ pre code{background:none;color:inherit;padding:0}
+ .note{border-left:4px solid var(--accent);background:#eef4fa;padding:.75rem 1rem;margin:1.1rem 0;border-radius:0 4px 4px 0}
+ .warn{border-left-color:var(--warn);background:#faf3ea}
+ ul,ol{padding-left:1.35rem}li{margin:.3rem 0}
+ .sw{display:inline-block;width:.9em;height:.9em;border:1px solid #999;vertical-align:-.1em;margin-right:.3em;border-radius:3px}
+</style></head><body>
+
+<h1>Visual System</h1>
+<p class="byline">Design spec &middot; 2026-10-04 &middot; Simple Secret Santa<br>
+Target: <code>css/styles.css</code> (rewritten), <code>index.html</code>, <code>js/ui/setup.js</code>, <code>js/ui/reveal.js</code>,
+<code>js/ui/wishlist.js</code>, <code>js/ui/dom.js</code>, <code>README.md</code>, two new guard tests under <code>test/</code><br>
+Visual reference: <code>docs/superpowers/brainstorm/2026-10-04-visual-system-mockup.html</code> (approved 2026-10-04). Where this
+document and the mockup differ, this document wins.</p>
+
+<div class="note"><strong>Status: design approved in chat 2026-10-04 after four rounds of mockup edits.</strong>
+Classified bounded at the outset; upgraded to a written spec because the approved design restructures two flows and
+touches every screen, which is more than five tasks. Rulings recorded in §0: direction A (tighten what exists); a
+three-step type scale; section titles in the serif at body size; 6&nbsp;px radius; the five original star colours kept;
+no italics; one container level per screen; results and the wishlist link each replace the form that produced them.</div>
+
+<h2>Requirements</h2>
+<p><strong>Decomposes</strong></p>
+<ul>
+<li><strong>REQ-SSS-0009</strong> &mdash; usable on a phone screen at least as narrow as 412&nbsp;CSS&nbsp;px.
+ <ul>
+ <li>REQ-SSS-0009.1 Every screen in §5 shall fit a 412&nbsp;px viewport with no horizontal scrolling.</li>
+ <li>REQ-SSS-0009.2 Every button and text input shall be at least 42&nbsp;px tall.</li>
+ <li>REQ-SSS-0009.3 An exclusion row shall wrap its two selects onto their own lines below 480&nbsp;px, as today.</li>
+ </ul></li>
+<li><strong>REQ-SSS-0010</strong> &mdash; one fixed colour theme regardless of device preference.
+ <ul>
+ <li>REQ-SSS-0010.1 Every colour shall be defined once, as a custom property on <code>:root</code> in <code>css/styles.css</code> (§2).</li>
+ <li>REQ-SSS-0010.2 No colour literal (hex, <code>rgb()</code>, <code>rgba()</code>, named colour) shall appear outside that
+  <code>:root</code> block &mdash; not elsewhere in the stylesheet, not in <code>index.html</code>, not in any JS template.</li>
+ <li>REQ-SSS-0010.3 The stylesheet shall contain no <code>prefers-color-scheme</code> rule.</li>
+ </ul></li>
+<li><strong>REQ-SSS-0007</strong> &mdash; the README and the UI claim no more wishlist protection than the code delivers.
+ <ul>
+ <li>REQ-SSS-0007.1 Every user-facing string about wishlists shall be one of those in §4; each describes the password gate and
+  nothing stronger.</li>
+ </ul></li>
+</ul>
+<p><strong>Consulted, not changed:</strong> REQ-SSS-0001 (each link reveals only its own assignment &mdash; the reveal screen
+still shows one giver and one receiver); REQ-SSS-0002 (exclusions &mdash; the form keeps the exclusion rows and their behaviour);
+REQ-SSS-0003 and REQ-SSS-0006 (the wishlist password still appears on the Santa's reveal screen, §5.3); REQ-SSS-0005 (no build
+step &mdash; plain CSS custom properties, no preprocessor, no bundler); REQ-SSS-0008 (the giver's name still appears on the reveal
+screen, as the greeting in §5.3).</p>
+
+<h2>0. Rulings</h2>
+<table>
+<tr><th>Question</th><th>Ruling</th></tr>
+<tr><td>Direction</td><td>A &mdash; keep the dark theme, the Libre Baskerville + DM Sans pairing and the green/gold identity; impose a system.</td></tr>
+<tr><td>Type scale</td><td>Three steps: heading, body, note. Nothing else.</td></tr>
+<tr><td>Section titles</td><td>Serif at body size (mockup variant B).</td></tr>
+<tr><td>Corner radius</td><td>6&nbsp;px on controls and boxes, 8&nbsp;px on the page card.</td></tr>
+<tr><td>Stars</td><td>The five original colours stay &mdash; gold, ice, green, silver, red &mdash; as named tokens used nowhere else.</td></tr>
+<tr><td>Italics</td><td>None. The italic font load goes.</td></tr>
+<tr><td>"How it works"</td><td>Summary at note size; two text colours inside (text-1 lead-ins, text-2 for everything else).</td></tr>
+<tr><td>Busyness</td><td>One container level per screen; hairline rules between sections; one primary button per screen; navigation as text links.</td></tr>
+<tr><td>Flows</td><td>Results replace the setup form; the wishlist link replaces the wishlist form. Both offer a text link back.</td></tr>
+<tr><td>Reveal note</td><td>"Keep this to yourself." removed (user, 2026-10-04).</td></tr>
+<tr><td>Remove buttons</td><td>Only on participant rows added beyond the first three (unchanged behaviour, now also the rule).</td></tr>
+</table>
+
+<h2>1. Facts</h2>
+<p>From a full read of the styling surface on 2026-10-04 (Explore audits; every file read in full).</p>
+<ul>
+<li>About 15 rendered font sizes from 17 declarations in <code>rem</code>, <code>px</code> and <code>em</code>; 11 set inline in JS templates. Seven letter-spacing values. DM Sans 600 loaded, unused; a faked sans italic on the reveal screen.</li>
+<li>The single <code>h2</code> (19.2&nbsp;px) is barely larger than <code>h3</code> (17.6&nbsp;px); <code>h3</code> has four looks. Headings are faked with <code>&lt;strong&gt;</code>, <code>&lt;strong&gt;&lt;br&gt;&lt;br&gt;</code> and an all-inline uppercase label. The recipient's name is a bold gold <code>div</code>.</li>
+<li>Title Case headings, ALL CAPS buttons (via <code>text-transform</code>), sentence-case labels; "How It Works" and "How it works" both appear.</li>
+<li>Three greens, hard-coded gold / silver / ice-blue, a pink glow used only in two <code>box-shadow</code>s, warning = error red, 3 unused and 5 duplicate tokens.</li>
+<li>Seven button variants, ~11 box kinds, 30 inline <code>style=</code> attributes, one CSS rule that selects on inline-style text (<code>div[style*="background: var(--bg-tertiary)"] strong</code>) and two <code>!important</code> overrides.</li>
+<li><strong>Bug.</strong> <code>copyToClipboard</code> (<code>js/ui/dom.js:27-34</code>) sets an inline background <code>#38a169</code> and restores <code>originalBg || '#48bb78'</code>; <code>originalBg</code> is always empty, so every copy button is permanently off-palette green after its first click.</li>
+<li>Tests under <code>test/</code> import nothing from <code>js/ui/</code> or <code>js/main.js</code>. <code>test/legacy-removed.test.js</code> does read <code>js/main.js</code> and <code>js/ui/wishlist.js</code> <em>as text</em> and asserts on strings (§7).</li>
+<li>JS depends on these selectors; none may be renamed: ids <code>mainContainer</code>, <code>setupSection</code>, <code>peopleList</code>, <code>exclusionsList</code>, <code>results</code>, <code>successBanner</code>, <code>copyAllBtn</code>, <code>linksList</code>, <code>revealSection</code>, <code>hintsSection</code>, <code>viewHintsSection</code>, <code>hintsText</code>, <code>hintLengthWarning</code>, <code>hintLinkDisplay</code>, <code>hint-link-input</code>, <code>passwordInput</code>, <code>decodedHints</code>; classes <code>person-name</code>, <code>exclusion-row</code>, <code>person1-select</code>, <code>person2-select</code>.</li>
+<li><code>index.html:83-93</code> carries a comment warning that the nesting of <code>#revealSection</code>, <code>#hintsSection</code> and <code>#viewHintsSection</code> relative to <code>#mainContainer</code> must not be changed. This spec does not change it (§7).</li>
+</ul>
+
+<h2>2. Tokens (REQ-SSS-0010.1)</h2>
+<p>The entire <code>:root</code> block. Nothing else in the stylesheet or the templates names a colour.</p>
+<pre><code>:root {
+  /* Surfaces */
+  --bg-0: #0f0f0f;   /* page */
+  --bg-1: #1a1a1a;   /* the one card */
+  --bg-2: #232323;   /* inputs, selects, textarea, mono link fields */
+  /* Text */
+  --text-1: #f5f5f4; /* primary */
+  --text-2: #a8a8a6; /* secondary */
+  --text-3: #6f6f6d; /* notes */
+  /* Accent: exactly one green */
+  --accent: #3a9a5c;
+  --accent-hover: #45ad6a;
+  --accent-soft: rgba(58, 154, 92, 0.12);
+  --accent-border: rgba(58, 154, 92, 0.4);
+  /* Gold: the recipient's name, and one star */
+  --gold: #e8c87a;
+  /* Stars only */
+  --star-ice: #8ec8e8;
+  --star-silver: #b8b8b8;
+  /* Danger: remove, errors, warnings */
+  --danger: #c54545;
+  --danger-soft: rgba(197, 69, 69, 0.12);
+  --danger-border: rgba(197, 69, 69, 0.4);
+  /* Lines */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  /* Type */
+  --font-serif: 'Libre Baskerville', Georgia, serif;
+  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --t-heading: 1.5rem;     /* 24px */
+  --t-body: 1rem;          /* 16px */
+  --t-note: 0.8125rem;     /* 13px */
+  /* Shape and space */
+  --radius: 6px;
+  --radius-card: 8px;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+}</code></pre>
+<p>Removed with no replacement: <code>--green-light</code>, <code>--green-dark</code>, <code>--red-light</code>, <code>--red-subtle</code>,
+<code>--success*</code>, <code>--error*</code>, <code>--warning*</code>, <code>--bg-elevated</code>, <code>--border-light</code>, the pink glow
+and both triple <code>box-shadow</code>s. Every spacing value in the stylesheet is one of <code>--s-1</code>&hellip;<code>--s-6</code>.
+Selection colour (<code>::selection</code>) and scrollbar rules may stay, expressed in tokens.</p>
+
+<h2>3. Type, controls, surfaces</h2>
+<h3>3.1 Three type roles</h3>
+<table>
+<tr><th>Role</th><th>Size</th><th>Face / weight</th><th>Colour</th><th>Used for</th></tr>
+<tr><td>Heading</td><td><code>--t-heading</code></td><td>serif 400, line-height 1.25, letter-spacing &minus;0.01em</td><td>text-1 (gold for the recipient's name)</td><td>Page titles; the recipient's name. Exactly one per screen.</td></tr>
+<tr><td>Body</td><td><code>--t-body</code></td><td>sans 400 (buttons 500); section titles serif 400</td><td>text-1; text-2 for explanatory sentences</td><td>Everything read or pressed: inputs, buttons, section titles, instructions, the password.</td></tr>
+<tr><td>Note</td><td><code>--t-note</code></td><td>sans 400</td><td>text-3 (text-2 inside "How it works" and in status tints)</td><td>Help text, warnings, link URLs, the password label, text links, the tagline, the "How it works" summary. The app works if none is read.</td></tr>
+</table>
+<ul>
+<li>Sentence case everywhere. No <code>text-transform</code> anywhere, including the password input (today <code>lowercase</code>; the JS already lowercases the value).</li>
+<li>Letter-spacing only on the mono password (<code>0.1em</code>) and the stars (<code>0.5em</code>).</li>
+<li>No <code>font-style: italic</code>. Font weights 400 and 500 only.</li>
+<li>Fonts loaded: <code>Libre+Baskerville:wght@400</code> and <code>DM+Sans:wght@400;500</code>. Nothing else.</li>
+<li>Mono is used for link URLs and the wishlist password only, at note size for URLs and body size for the password.</li>
+</ul>
+
+<h3>3.2 Three buttons, one height</h3>
+<table>
+<tr><th>Class</th><th>Look</th><th>Where</th></tr>
+<tr><td><code>.btn.btn--primary</code></td><td>filled <code>--accent</code>, text <code>--bg-0</code>, hover <code>--accent-hover</code></td><td>The one main action per screen: Generate pairings; Create your wishlist; Generate link; Decode.</td></tr>
+<tr><td><code>.btn.btn--secondary</code></td><td>transparent, 1px <code>--line-strong</code>, text <code>--text-1</code>; hover border <code>--text-2</code></td><td>+ Add person; + Add exclusion; Copy all links; Copy link (link-ready screen).</td></tr>
+<tr><td><code>.btn.btn--quiet</code> (+ <code>.danger</code>)</td><td>transparent, no border, text <code>--accent</code> (or <code>--danger</code>), 36&nbsp;px tall, hover <code>--accent-soft</code> (or <code>--danger-soft</code>)</td><td>Copy link in a results row (accent); Remove (danger).</td></tr>
+<tr><td><code>.link</code></td><td>a button styled as underlined note-size text in <code>--text-2</code>, hover <code>--text-1</code></td><td>Navigation: Edit participants; Start a new exchange; Back.</td></tr>
+</table>
+<p>All <code>.btn</code> are 42&nbsp;px tall, body size, weight 500, radius <code>--radius</code>, with a 150&nbsp;ms colour transition and no <code>transform</code>. <code>.btn--block</code> makes one full width. The bare <code>button</code> element gets no global styling; every button carries classes.</p>
+
+<h3>3.3 Inputs</h3>
+<p><code>.in</code>: 100% wide, 42&nbsp;px tall, body size, <code>--bg-2</code>, 1px <code>--line-strong</code>, radius <code>--radius</code>, placeholder <code>--text-3</code>, focus border <code>--accent</code> with no outline. <code>textarea.in</code> is auto height, min 110&nbsp;px, vertically resizable. <code>.in.mono</code> is the read-only URL field: mono, note size, <code>--text-2</code>.</p>
+
+<h3>3.4 Surfaces</h3>
+<table>
+<tr><th>Class</th><th>Look</th><th>Rule</th></tr>
+<tr><td><code>.card</code></td><td><code>--bg-1</code>, 1px <code>--line</code>, radius <code>--radius-card</code>, padding <code>--s-5</code> (<code>--s-4</code> below 480&nbsp;px)</td><td>Exactly one per screen: <code>#mainContainer</code> for setup/results; <code>#revealSection</code>, <code>#hintsSection</code>, <code>#viewHintsSection</code> each become a card when shown.</td></tr>
+<tr><td><code>.tint</code> (+ <code>.tint--danger</code>)</td><td><code>--accent-soft</code> with <code>--accent-border</code> (or the danger pair), radius <code>--radius</code>, padding <code>--s-3</code> <code>--s-4</code></td><td>Status only: "✓ N links ready to share", "✓ Link ready", "✓ Wishlist decoded", the save-your-links warning, invalid-password and invalid-link errors.</td></tr>
+<tr><td><code>hr.sep</code></td><td>1px <code>--line</code>, margins <code>--s-5</code></td><td>Separates sections inside the card. There are no nested boxes.</td></tr>
+</table>
+<p>Gone: <code>.exclusions-section</code>, <code>.link-item</code>, <code>.reveal-box</code>, <code>.hints-box</code>, <code>.hint-link-display</code>, <code>.info-box</code>, <code>.success</code>, <code>.success-banner</code>, <code>.error</code>, <code>.warning</code>, <code>#results</code>'s own box, and the inline password box. Each becomes plain content in the card, a <code>.tint</code>, or nothing.</p>
+
+<h3>3.5 Stars and animation</h3>
+<p><code>.stars</code>: centred, note size, letter-spacing <code>0.5em</code>, five spans coloured <code>--gold</code>, <code>--star-ice</code>, <code>--accent</code>, <code>--star-silver</code>, <code>--danger</code> in that order, on every screen. The existing <code>fadeIn</code> on the card may stay; the staggered per-link <code>fadeIn</code> delays and <code>slideUp</code> go.</p>
+
+<h2>4. Copy (REQ-SSS-0007.1)</h2>
+<p>Every visible string that changes. Strings not listed keep their current text. Alerts and <code>confirm</code> prompts are unchanged.</p>
+<table>
+<tr><th>Where</th><th>Now</th><th>Becomes</th></tr>
+<tr><td>Setup, summary</td><td>How It Works</td><td>How it works</td></tr>
+<tr><td>Setup, step 4; README item 4</td><td>Wishlists are optional—if shared, they're gift-wrapped for the right Santa</td><td>Wishlists are optional—each person can create one for their Santa</td></tr>
+<tr><td>Setup</td><td>+ Add Person / + Add Exclusion / Generate Pairings</td><td>+ Add person / + Add exclusion / Generate pairings</td></tr>
+<tr><td>Setup</td><td>Exclusions (Optional)</td><td>Exclusions (optional)</td></tr>
+<tr><td>Results</td><td>heading "Distribution Links"</td><td>removed; the status tint and note carry it</td></tr>
+<tr><td>Results</td><td>Copy All Links / Copy Link</td><td>Copy all links / Copy link</td></tr>
+<tr><td>Results, per link</td><td><em>Name</em>'s link</td><td><em>Name</em></td></tr>
+<tr><td>Results</td><td>&mdash;</td><td>new text link: Edit participants</td></tr>
+<tr><td>Copy feedback</td><td>Copied!</td><td>✓ Copied</td></tr>
+<tr><td>Reveal</td><td>heading "Your Assignment"</td><td>removed; the recipient's name is the heading</td></tr>
+<tr><td>Reveal</td><td>Hello, <em>Giver</em> / You are giving a gift to</td><td>Hello, <em>Giver</em>. You're giving a gift to</td></tr>
+<tr><td>Reveal</td><td>Keep this assignment to yourself.</td><td>removed</td></tr>
+<tr><td>Reveal</td><td>WISHLIST PASSWORD</td><td>Wishlist password</td></tr>
+<tr><td>Reveal</td><td>Save this—you'll need it to decode <em>Receiver</em>'s wishlist if they share one.</td><td>You'll need it to open <em>Receiver</em>'s wishlist, if they share one.</td></tr>
+<tr><td>Reveal</td><td>heading "Create Your Wishlist" + "Share hints with your Secret Santa" + button "Create Wishlist"</td><td>button "Create your wishlist" + note "Share hints with your own Secret Santa."</td></tr>
+<tr><td>Reveal, error</td><td>Start New Exchange</td><td>Start a new exchange</td></tr>
+<tr><td>Wishlist create</td><td>heading "Your Wishlist"</td><td>Your wishlist</td></tr>
+<tr><td>Wishlist create</td><td>Only your Secret Santa gets the password.</td><td>removed</td></tr>
+<tr><td>Wishlist create</td><td>placeholder "…favorite things..."</td><td>"…favorite things…" (one ellipsis character)</td></tr>
+<tr><td>Wishlist create</td><td>Generate Link</td><td>Generate link</td></tr>
+<tr><td>Link ready</td><td>heading "Link Ready"</td><td>status "✓ Link ready"</td></tr>
+<tr><td>Link ready</td><td>"How it works" block: Anyone can open this link, but only your assigned Santa has the password to decode it.</td><td>note: Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</td></tr>
+<tr><td>Wishlist view</td><td>Enter the password to decode this wishlist. / Only the assigned Secret Santa is shown this password</td><td>Enter the password from your assignment page. (the second line removed)</td></tr>
+<tr><td>Wishlist view</td><td>heading "Wishlist Decoded"</td><td>status "✓ Wishlist decoded"</td></tr>
+<tr><td>Error screen</td><td>Invalid Link</td><td>Invalid link</td></tr>
+</table>
+<p>Strings about wishlists after this change, in full: the two "How it works" lines (step 4 and the gift-wrapped note), the
+gift-wrapped note on the create screen, the reveal password note, the link-ready note, the view-screen prompt, and the
+existing invalid-password error. Each describes a password that the Santa has; none promises secrecy from a determined reader.</p>
+
+<h2>5. Screens</h2>
+<p>Each screen is one <code>.card</code>. Lists give document order. "Rule" means <code>hr.sep</code>. The mockup shows 5.1&ndash;5.5; 5.6 and 5.7 are not mocked and follow the same rules.</p>
+
+<h3>5.1 Setup (<code>#mainContainer</code> &gt; <code>#setupSection</code> visible, <code>#results</code> hidden)</h3>
+<ol>
+<li>Stars; heading "Simple Secret Santa"; note "People picking through practically private pairings" (sans, not italic).</li>
+<li><code>details.how</code>: summary "How it works" at note size with the gold ✦ marker; body at note size, text-2, lead-ins text-1 weight 500; the two notes also text-2.</li>
+<li>Section title "Participants"; the <code>.person-name</code> rows. Rows 1&ndash;3 have no Remove; rows added by "+ Add person" have a quiet danger Remove. Then "+ Add person" (secondary, block).</li>
+<li>Rule. Section title "Exclusions" with "(optional)" as an inline note in the sans; note "Prevent certain pairings (couples, family members, etc.)"; <code>.exclusion-row</code>s (select, ↔ as a note-coloured span, select, quiet danger Remove); "+ Add exclusion" (secondary, block).</li>
+<li>Rule. "Generate pairings" (primary, block).</li>
+</ol>
+
+<h3>5.2 Results (<code>#setupSection</code> hidden, <code>#results</code> visible)</h3>
+<ol>
+<li>Stars; heading "Simple Secret Santa"; tagline (shared header, see Structure below).</li>
+<li><code>#successBanner</code> as a <code>.tint</code> in <code>--accent</code> weight 500: "✓ N links ready to share". Note "Send each link privately to the corresponding person." "Copy all links" (secondary, block, <code>#copyAllBtn</code>).</li>
+<li>Rule. For each person, in <code>#linksList</code>: section title = the name; <code>.in.mono</code> read-only URL; quiet "Copy link". Successive entries separated by <code>--s-4</code>, no boxes.</li>
+<li><code>.tint.tint--danger</code> at note size in <code>--danger</code>: "Save these links. Once you leave this page, these specific pairings cannot be recreated."</li>
+<li>Centred text link "Edit participants".</li>
+</ol>
+<p><strong>Structure.</strong> Today <code>#results</code> is nested inside <code>#setupSection</code> (<code>index.html:68</code>); it moves out to be the next sibling of <code>#setupSection</code> inside <code>#mainContainer</code>, so that hiding the form does not hide the results. The stars, heading and tagline stay above both sections and are shown in both states (the mockup omits the tagline on results; this document wins).</p>
+<p><strong>Behaviour.</strong> <code>generateSecretSanta()</code> hides <code>#setupSection</code> and shows <code>#results</code> instead of appending below the form, then scrolls to the top of the card. "Edit participants" shows <code>#setupSection</code> and hides <code>#results</code>; names and exclusions are untouched because the form was only hidden. Pressing "Generate pairings" again produces a fresh salt and fresh links exactly as today; the warning text already covers this.</p>
+
+<h3>5.3 Reveal (<code>#revealSection</code>)</h3>
+<ol>
+<li>Stars.</li>
+<li>Body text in text-2: "Hello, <em>Giver</em>. You're giving a gift to"</li>
+<li>Heading in <code>--gold</code>: <em>Receiver</em>.</li>
+<li>Rule. One line, centred, baseline-aligned: body text-2 "Wishlist password" then the password in mono, body size, <code>--accent</code>, letter-spacing 0.1em. Note beneath: "You'll need it to open <em>Receiver</em>'s wishlist, if they share one."</li>
+<li>Rule. "Create your wishlist" (primary, block); note "Share hints with your own Secret Santa."</li>
+<li>Text link "Start a new exchange" (<code>location.href = location.pathname</code>, as today).</li>
+</ol>
+<p>Everything is centred. The <code>onclick</code> for the primary button is unchanged (<code>showCreateHints(window.revealData.giver, window.revealData.salt)</code>).</p>
+
+<h3>5.4 Wishlist create (<code>#hintsSection</code>, form state)</h3>
+<ol>
+<li>Stars; heading "Your wishlist".</li>
+<li>A left-aligned block: <code>textarea#hintsText.in</code> with the ellipsis placeholder; note "Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁"; <code>p#hintLengthWarning</code> as a note in <code>--danger</code>, hidden until needed; "Generate link" (primary, block).</li>
+<li>Text link "Back" (<code>location.href = location.pathname</code>).</li>
+</ol>
+
+<h3>5.5 Wishlist link ready (<code>#hintsSection</code>, after <code>generateHintLink()</code>)</h3>
+<ol>
+<li>Stars; heading "Your wishlist" (unchanged from 5.4).</li>
+<li><code>.tint</code> "✓ Link ready".</li>
+<li><code>input#hint-link-input.in.mono</code> read-only; "Copy link" (secondary, block); note "Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it."</li>
+<li>Text link "Back".</li>
+</ol>
+<p><strong>Behaviour.</strong> The form block of 5.4 is wrapped in a container that <code>generateHintLink()</code> hides when it shows <code>#hintLinkDisplay</code>. The 1500-character warning and 2000-character confirm are unchanged.</p>
+
+<h3>5.6 Wishlist view (<code>#viewHintsSection</code>)</h3>
+<ol>
+<li>Stars; heading "Wishlist".</li>
+<li>Body text-2 "Enter the password from your assignment page."; <code>input#passwordInput.in.mono</code> centred, body size, letter-spacing 0.1em, <code>maxlength="6"</code>, no <code>text-transform</code>; "Decode" (primary, block).</li>
+<li><code>#decodedHints</code>: on success, a <code>.tint</code> "✓ Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
+<li>Text link "Back" (<code>location.href = location.pathname</code>, as today).</li>
+</ol>
+<p>On success the prompt, input and Decode button are hidden, so the decoded list replaces the form as in 5.5. On failure they stay, so the password can be retried.</p>
+
+<h3>5.7 Invalid link (<code>showError()</code> into <code>#revealSection</code>)</h3>
+<ol>
+<li>Stars; heading "Invalid link".</li>
+<li><code>.tint.tint--danger</code> note with the message.</li>
+<li>Text link "Start a new exchange".</li>
+</ol>
+
+<h2>6. The copy button (bug fix)</h2>
+<p><code>copyToClipboard(text, button)</code> in <code>js/ui/dom.js</code> no longer writes <code>button.style.background</code>. It saves <code>button.textContent</code>,
+sets it to "✓ Copied", adds the class <code>is-copied</code>, and after 2000&nbsp;ms restores the text and removes the class. CSS: <code>.btn.is-copied</code> sets
+<code>color: var(--text-2)</code> and, for <code>.btn--secondary</code>, <code>border-color: var(--line)</code>. The <code>#38a169</code> and <code>#48bb78</code> literals are deleted. The clipboard fallback and the failure alert are unchanged.</p>
+
+<h2>7. Constraints on the implementation</h2>
+<ul>
+<li><strong>Inline styles.</strong> After this change the only <code>style=</code> attributes anywhere in <code>index.html</code> or the JS templates are <code>style="display: none"</code> on containers that JS shows and hides. Every other inline style becomes a class in <code>css/styles.css</code>. The selector <code>div[style*="background: var(--bg-tertiary)"] strong</code> and every <code>!important</code> are deleted.</li>
+<li><strong>Selectors.</strong> No id or class listed in §1 is renamed or removed. New classes may be added freely.</li>
+<li><strong>Nesting.</strong> The positions of <code>#mainContainer</code>, <code>#revealSection</code>, <code>#hintsSection</code> and <code>#viewHintsSection</code> in <code>index.html</code>, and the show/hide calls that target them, are unchanged. The comment at <code>index.html:83-93</code> stays. The one structural move is <code>#results</code> out of <code>#setupSection</code> (§5.2); the implementer counts the opening and closing <code>div</code>s of <code>#mainContainer</code> before and after and keeps the three overlay sections where they are.</li>
+<li><strong>Text-reading tests.</strong> <code>test/legacy-removed.test.js</code> reads <code>js/main.js</code> and <code>js/ui/wishlist.js</code> as text. <code>js/main.js</code> must not contain <code>hash.startsWith('hints-')</code>; <code>js/ui/wishlist.js</code> must not contain <code>text.startsWith('VALID:')</code>, <code>.isLegacy</code> or <code>enteredPassword.startsWith('0')</code>, and must contain <code>enteredPassword.length === 5</code> exactly once. Template edits must respect this.</li>
+<li><strong>No logic changes</strong> beyond §5.2, §5.5, §5.6 show/hide and §6. Encoding, assignment, validation, hashing and the hint codec are untouched.</li>
+<li><strong>Escaping.</strong> Every interpolated name or URL continues to pass through <code>escapeHtml</code>; the two <code>value="…"</code> uses stay as they are (URLs contain no quotes).</li>
+<li><strong>Mobile.</strong> Below 480&nbsp;px: card padding <code>--s-4</code>, body padding <code>--s-3</code> <code>--s-2</code>, exclusion rows wrap with each select full width and the ↔ hidden, as today.</li>
+</ul>
+
+<h2>8. Tests and verification</h2>
+<h3>8.1 Guard tests (new, node:test, same style as <code>test/legacy-removed.test.js</code>)</h3>
+<ul>
+<li><code>test/styles.test.js</code> reads <code>css/styles.css</code> as text and asserts: (a) every match of <code>/#[0-9a-f]{3,8}\b|rgba?\(/i</code> lies inside the first <code>:root { … }</code> block (REQ-SSS-0010.2); (b) the text contains no <code>prefers-color-scheme</code> (REQ-SSS-0010.3); (c) no <code>!important</code>; (d) no <code>text-transform</code>; (e) no <code>font-style: italic</code>; (f) every <code>font-size:</code> value is one of <code>var(--t-heading)</code>, <code>var(--t-body)</code>, <code>var(--t-note)</code> or <code>inherit</code>.</li>
+<li><code>test/templates.test.js</code> reads <code>index.html</code> and every file under <code>js/ui/</code> as text and asserts: (a) every <code>style="…"</code> attribute is exactly <code>display: none</code> (allowing <code>display:none</code> and a trailing semicolon); (b) no colour literal as in 8.1(a); (c) <code>index.html</code> loads only the two font weights of §3.1; (d) none of the removed class names of §3.4 appears.</li>
+</ul>
+<p>The existing suite (40 tests at <code>f1ed2c0</code>) stays green.</p>
+
+<h3>8.2 Browser walk-through (acceptance)</h3>
+<p>No test imports the UI, so acceptance is a walk-through at the VM URL
+(<code>https://notes.app.andrewpeekema.com:9443/ota/brainstorm/secret-santa/</code>, synced from the branch) by the user, on a phone or a 412&nbsp;px
+viewport, recorded in <code>docs/superpowers/verification/2026-10-04-visual-system-walkthrough.md</code> with one line per check:</p>
+<ol>
+<li>Setup: no horizontal scroll at 412&nbsp;px; three names, add a fourth, remove it; add an exclusion and see the ↔ hidden and the selects stacked.</li>
+<li>Generate: the form disappears, results appear at the top; Copy link shows "✓ Copied" for two seconds and returns to normal with no colour left behind; Edit participants brings the form back with the names intact.</li>
+<li>Reveal: open a link; one heading (the recipient, gold); the password line; Create your wishlist is the only filled button.</li>
+<li>Wishlist: create one; the form is replaced by "✓ Link ready"; open the link in another tab; a wrong password shows the danger tint and keeps the form; the right one replaces the form with "✓ Wishlist decoded".</li>
+<li>Invalid link: edit the hash; "Invalid link" with a danger tint.</li>
+<li>Every string in §4 reads as written; no ALL CAPS anywhere; no italics.</li>
+</ol>
+
+<h2>9. Scope</h2>
+<p><strong>In:</strong> everything above; the README item 4 wording; deleting dead CSS.</p>
+<p><strong>Out:</strong> any change to link encoding, assignment, validation, or the wishlist codec; dark/light switching (REQ-SSS-0010 forbids it); a custom domain; sharing UX (sub-project 3 of the restart spec, still deferred); replacing inline <code>onclick</code> handlers with listeners (the restart spec deliberately left them; this spec keeps them and only changes their button classes).</p>
+
+</body></html>
