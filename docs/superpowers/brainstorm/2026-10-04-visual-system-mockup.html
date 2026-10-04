@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secret Santa — visual system mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   PROPOSED SYSTEM — everything below the fold uses only this.
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --bg-0: #0f0f0f;            /* page */
+  --bg-1: #1a1a1a;            /* card */
+  --bg-2: #232323;            /* inset: inputs, nested boxes */
+  /* Text */
+  --text-1: #f5f5f4;          /* primary */
+  --text-2: #a8a8a6;          /* secondary */
+  --text-3: #6f6f6d;          /* muted / notes */
+  /* Accent — exactly one green */
+  --accent: #3a9a5c;
+  --accent-soft: rgba(58,154,92,.12);
+  --accent-border: rgba(58,154,92,.4);
+  /* Gold — reserved for the recipient's name and the stars */
+  --gold: #e8c87a;
+  /* Star-only decoration: the original five-colour row */
+  --star-ice: #8ec8e8;
+  --star-silver: #b8b8b8;
+  /* Danger — remove, errors, warnings */
+  --danger: #c54545;
+  --danger-soft: rgba(197,69,69,.12);
+  --danger-border: rgba(197,69,69,.4);
+  /* Lines */
+  --line: rgba(255,255,255,.08);
+  --line-strong: rgba(255,255,255,.14);
+  /* Type — the three steps */
+  --font-serif: 'Libre Baskerville', Georgia, serif;
+  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --t-heading: 1.5rem;        /* 24px — page titles, the recipient's name */
+  --t-body: 1rem;             /* 16px — everything you read or press */
+  --t-note: 0.8125rem;        /* 13px — notes you can ignore */
+  /* Shape & space */
+  --radius: 6px;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+}
+* { box-sizing: border-box; }
+body { margin:0; background: var(--bg-0); color: var(--text-1); font-family: var(--font-sans); font-size: var(--t-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* --- Type roles --- */
+.h   { font-family: var(--font-serif); font-weight: 400; font-size: var(--t-heading); line-height: 1.25; letter-spacing: -0.01em; margin: 0; color: var(--text-1); }
+.lbl { font-size: var(--t-body); font-weight: 500; color: var(--text-1); margin: 0 0 var(--s-2); }          /* section title, variant A */
+.proto--serif .lbl { font-family: var(--font-serif); font-weight: 400; }                                       /* section title, variant B */
+.note{ font-size: var(--t-note); color: var(--text-3); line-height: 1.5; margin: 0; }
+.sec { color: var(--text-2); }
+.mono{ font-family: var(--font-mono); }
+
+/* --- Surfaces --- */
+.card  { background: var(--bg-1); border: 1px solid var(--line); border-radius: calc(var(--radius) + 2px); padding: var(--s-5); }
+.inset { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-4); }
+.tint  { background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: var(--radius); padding: var(--s-4); }
+.tint--danger { background: var(--danger-soft); border-color: var(--danger-border); }
+
+/* --- Controls: one height, one size --- */
+.in, .btn { height: 42px; font: inherit; font-size: var(--t-body); border-radius: var(--radius); }
+.in { width:100%; padding: 0 var(--s-3); background: var(--bg-2); color: var(--text-1); border: 1px solid var(--line-strong); }
+.in::placeholder { color: var(--text-3); }
+.in:focus { outline: none; border-color: var(--accent); }
+textarea.in { height: auto; min-height: 110px; padding: var(--s-3); resize: vertical; line-height: 1.5; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap: var(--s-2); padding: 0 var(--s-4); cursor:pointer; border:1px solid transparent; font-weight:500; transition: background .15s, border-color .15s, color .15s; }
+.btn--primary   { background: var(--accent); color: var(--bg-0); }
+.btn--primary:hover { background: #45ad6a; }
+.btn--secondary { background: transparent; color: var(--text-1); border-color: var(--line-strong); }
+.btn--secondary:hover { border-color: var(--text-2); }
+.btn--quiet     { background: transparent; color: var(--accent); padding: 0 var(--s-3); height: 36px; }
+.btn--quiet:hover { background: var(--accent-soft); }
+.btn--quiet.danger { color: var(--danger); }
+.btn--quiet.danger:hover { background: var(--danger-soft); }
+.btn--block { width: 100%; }
+.link { background:none; border:0; padding:0; font: inherit; font-size: var(--t-note); color: var(--text-2); cursor:pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--text-1); }
+.kv { display:flex; align-items:baseline; justify-content:center; gap: var(--s-3); }
+
+/* --- Layout helpers --- */
+.row { display:flex; gap: var(--s-2); align-items:center; }
+.row > .in { flex:1; min-width: 0; }
+.stack > * + * { margin-top: var(--s-3); }
+.center { text-align:center; }
+.stars { text-align:center; font-size: var(--t-note); letter-spacing: .5em; color: var(--text-3); margin-bottom: var(--s-2); }
+.stars .g { color: var(--gold); } .stars .i { color: var(--star-ice); } .stars .a { color: var(--accent); } .stars .s { color: var(--star-silver); } .stars .d { color: var(--danger); }
+hr.sep { border:0; border-top:1px solid var(--line); margin: var(--s-5) 0; }
+details.how { border:1px solid var(--line); border-radius: var(--radius); }
+details.how summary { list-style:none; cursor:pointer; padding: var(--s-3) var(--s-4); color: var(--text-2); font-size: var(--t-note); }
+details.how summary::-webkit-details-marker { display:none; }
+details.how summary::before { content:"✦"; color: var(--gold); margin-right: var(--s-2); font-size: var(--t-note); }
+details.how .body { padding: 0 var(--s-4) var(--s-4); color: var(--text-2); font-size: var(--t-note); border-top:1px solid var(--line); }
+details.how .body .note { color: var(--text-2); }
+details.how ol { padding-left: 18px; margin: var(--s-3) 0; } details.how li { margin: var(--s-1) 0; }
+details.how strong { color: var(--text-1); font-weight: 500; }
+
+/* ============================================================
+   MOCKUP CHROME (not part of the proposal)
+   ============================================================ */
+.wrap { max-width: 1240px; margin: 0 auto; padding: var(--s-6) var(--s-4); }
+.chrome-h { font-family: var(--font-serif); font-size: 1.5rem; margin: 0 0 var(--s-2); }
+.chrome-p { color: var(--text-2); max-width: 70ch; margin: 0 0 var(--s-4); }
+.spec { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-4); margin: var(--s-5) 0 var(--s-6); }
+.spec .card h4 { margin:0 0 var(--s-3); font-size: var(--t-note); font-weight: 500; color: var(--text-3); }
+.sw { display:flex; align-items:center; gap: var(--s-3); margin: var(--s-2) 0; font-size: var(--t-note); color: var(--text-2); }
+.sw i { width: 28px; height: 28px; border-radius: 6px; border:1px solid var(--line-strong); flex:none; }
+.screens { display:grid; grid-template-columns: repeat(auto-fit, minmax(380px, 412px)); gap: var(--s-5); justify-content: start; align-items: start; }
+.phone { width: 100%; max-width: 412px; }
+.phone-label { font-size: var(--t-note); color: var(--text-3); margin: 0 0 var(--s-2); display:flex; justify-content:space-between; }
+.phone .screen { background: var(--bg-0); border: 1px solid var(--line-strong); border-radius: 14px; padding: var(--s-4) var(--s-3); min-height: 200px; }
+iframe.before { width: 100%; height: 900px; border: 1px solid var(--line-strong); border-radius: 14px; background: #0f0f0f; }
+.toggle { display:inline-flex; border:1px solid var(--line-strong); border-radius: var(--radius); overflow:hidden; font-size: var(--t-note); }
+.toggle button { font: inherit; background: transparent; color: var(--text-2); border:0; padding: 6px 12px; cursor:pointer; }
+.toggle button.on { background: var(--bg-2); color: var(--text-1); }
+.rule { font-size: var(--t-note); color: var(--text-2); margin: var(--s-1) 0; padding-left: 14px; position: relative; }
+.rule::before { content:"—"; position:absolute; left:0; color: var(--text-3); }
+@media (max-width: 900px) { .screens { grid-template-columns: 1fr; } iframe.before { height: 760px; } }
+</style>
+</head>
+<body class="proto proto--serif">
+<div class="wrap">
+
+  <h1 class="chrome-h">Simple Secret Santa — visual system mockup</h1>
+  <p class="chrome-p">Direction A, with the three-step scale you asked for. The top section is the whole rulebook; the screens below use nothing else. Each phone frame is 412&nbsp;px wide (Pixel&nbsp;9). <a href="../secret-santa/" style="color:var(--accent)">Current app</a> for comparison.</p>
+
+  <div class="row" style="gap: var(--s-4); flex-wrap: wrap;">
+    <span class="note">Section-title treatment:</span>
+    <span class="toggle" id="toggle">
+      <button data-v="sans">A · sans, medium weight</button>
+      <button class="on" data-v="serif">B · serif, same size as body (chosen)</button>
+    </span>
+  </div>
+
+  <!-- ===================== THE SYSTEM ===================== -->
+  <div class="spec">
+    <div class="card">
+      <h4>Type — three steps, two faces</h4>
+      <p class="h" style="margin-bottom: var(--s-1)">Heading · 24 serif</p>
+      <p class="note" style="margin-bottom: var(--s-3)">Page titles and the recipient's name.</p>
+      <p class="lbl" style="margin-bottom: var(--s-1)">Body · 16 sans</p>
+      <p class="sec" style="margin:0 0 var(--s-1)">Everything you read or press: inputs, buttons, instructions, section titles (medium weight).</p>
+      <p class="note" style="margin-bottom: var(--s-3)">Section titles: serif at body size (variant B).</p>
+      <p class="note">Note · 13 sans, muted — help text, warnings, link URLs, the password label. The app works if you never read one.</p>
+      <hr class="sep" style="margin: var(--s-4) 0">
+      <p class="rule">Sentence case everywhere. No ALL CAPS, no Title Case, no <code>text-transform</code>.</p>
+      <p class="rule">Letter-spacing only on the mono password and the stars.</p>
+      <p class="rule">Font weights: 400 and 500. Drop the 600/700 loads.</p>
+      <p class="rule">No italics anywhere; the italic font load goes too.</p>
+    </div>
+
+    <div class="card">
+      <h4>Colour — named by role</h4>
+      <div class="sw"><i style="background:var(--bg-0)"></i> bg-0 · page</div>
+      <div class="sw"><i style="background:var(--bg-1)"></i> bg-1 · card</div>
+      <div class="sw"><i style="background:var(--bg-2)"></i> bg-2 · inputs, inset boxes</div>
+      <div class="sw"><i style="background:var(--text-1)"></i><i style="background:var(--text-2)"></i><i style="background:var(--text-3)"></i> text-1 / text-2 / text-3</div>
+      <div class="sw"><i style="background:var(--accent)"></i><i style="background:var(--accent-soft)"></i> accent — <em>one</em> green, plus its tint</div>
+      <div class="sw"><i style="background:var(--gold)"></i> gold — recipient's name and stars only</div>
+      <div class="sw"><i style="background:var(--star-ice)"></i><i style="background:var(--star-silver)"></i> star-ice / star-silver — the title stars only</div>
+      <div class="sw"><i style="background:var(--danger)"></i><i style="background:var(--danger-soft)"></i> danger — remove, errors, warnings</div>
+      <hr class="sep" style="margin: var(--s-4) 0">
+      <p class="rule">Removed: green-light, green-dark, red-light, the pink glow, and the 3 unused + 5 duplicate tokens. The five star colours stay, as named tokens.</p>
+      <p class="rule">Fixes the copy-button bug: the "Copied!" state is a class, not an inline colour.</p>
+    </div>
+
+    <div class="card">
+      <h4>Controls — three buttons, one height</h4>
+      <div class="stack">
+        <button class="btn btn--primary btn--block">Primary — the one main action per screen</button>
+        <button class="btn btn--secondary btn--block">Secondary — add, copy all, back</button>
+        <div class="row" style="justify-content:space-between">
+          <button class="btn btn--quiet">Quiet — copy link</button>
+          <button class="btn btn--quiet danger">Quiet — remove</button>
+        </div>
+        <input class="in" placeholder="Input — same 42px height as a button">
+      </div>
+      <hr class="sep" style="margin: var(--s-4) 0">
+      <p class="rule">Was: 7 button variants, 4 sizes, 2 hover colours, no filled primary.</p>
+      <p class="rule">Surfaces: <b>card</b> (bg-1) → <b>inset</b> (bg-2) → <b>tint</b> (accent or danger). That's all three box kinds; was ~11.</p>
+      <p class="rule">Radius 6px (8px on cards). Spacing on a 4px grid: 4 / 8 / 12 / 16 / 24 / 32.</p>
+      <p class="rule">All 30 inline <code>style=</code> attributes move into these classes.</p>
+      <p class="rule"><b>One container level per screen.</b> Sections are separated by hairline rules, not nested boxes. Tint is reserved for status (links ready / warning).</p>
+      <p class="rule"><b>One primary button per screen.</b> Navigation (back, start over) is a quiet text link.</p>
+    </div>
+  </div>
+
+  <!-- ===================== SCREEN 1: SETUP, THEN RESULTS ===================== -->
+  <h2 class="chrome-h" style="font-size:1.25rem">1 · Setup, then results</h2>
+  <p class="chrome-p">Two screens: the form ends at the primary button; the results replace it. "Edit participants" brings the form back with the names intact.</p>
+  <div class="screens">
+    <div class="phone">
+      <p class="phone-label"><span>After — setup</span><span>412 px</span></p>
+      <div class="screen">
+        <div class="card stack">
+          <div class="center">
+            <div class="stars"><span class="g">✦</span> <span class="i">✦</span> <span class="a">✦</span> <span class="s">✦</span> <span class="d">✦</span></div>
+            <h1 class="h">Simple Secret Santa</h1>
+            <p class="note" style="margin-top: var(--s-1)">People picking through practically private pairings</p>
+          </div>
+
+          <details class="how">
+            <summary>How it works</summary>
+            <div class="body">
+              <ol>
+                <li><strong>Generate pairings</strong> by entering participant names below</li>
+                <li><strong>Share each link privately</strong> with the right person</li>
+                <li><strong>Each person sees their assignment</strong> and gets a wishlist password</li>
+                <li><strong>Wishlists are optional</strong>—each person can create one for their Santa</li>
+              </ol>
+              <p class="note">Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
+              <p class="note" style="margin-top: var(--s-2)">This site doesn't store or collect any data—everything runs locally in your browser.</p>
+            </div>
+          </details>
+
+          <div>
+            <p class="lbl">Participants</p>
+            <div class="stack" style="--gap: 8px">
+              <div class="row"><input class="in" value="Alice"></div>
+              <div class="row"><input class="in" value="Bob"></div>
+              <div class="row"><input class="in" value="Carol"></div>
+              <div class="row"><input class="in" placeholder="Enter name"><button class="btn btn--quiet danger">Remove</button></div>
+            </div>
+            <button class="btn btn--secondary btn--block" style="margin-top: var(--s-3)">+ Add person</button>
+          </div>
+
+          <hr class="sep" style="margin: var(--s-2) 0 0">
+
+          <div>
+            <p class="lbl" style="margin-bottom: 2px">Exclusions <span class="note" style="display:inline; font-family: var(--font-sans)">(optional)</span></p>
+            <p class="note" style="margin-bottom: var(--s-3)">Prevent certain pairings (couples, family members, etc.)</p>
+            <div class="row">
+              <select class="in"><option>Alice</option></select>
+              <span class="note">↔</span>
+              <select class="in"><option>Bob</option></select>
+              <button class="btn btn--quiet danger">Remove</button>
+            </div>
+            <button class="btn btn--secondary btn--block" style="margin-top: var(--s-3)">+ Add exclusion</button>
+          </div>
+
+          <hr class="sep" style="margin: var(--s-2) 0 0">
+
+          <button class="btn btn--primary btn--block">Generate pairings</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <p class="phone-label"><span>After — results (replaces the form)</span><span>412 px</span></p>
+      <div class="screen">
+        <div class="card stack">
+          <div class="center">
+            <div class="stars"><span class="g">✦</span> <span class="i">✦</span> <span class="a">✦</span> <span class="s">✦</span> <span class="d">✦</span></div>
+            <h1 class="h">Simple Secret Santa</h1>
+          </div>
+
+          <div class="tint" style="color: var(--accent); font-weight: 500">✓ 3 links ready to share</div>
+          <p class="note">Send each link privately to the corresponding person.</p>
+          <button class="btn btn--secondary btn--block">Copy all links</button>
+
+          <hr class="sep" style="margin: var(--s-2) 0 0">
+
+          <div>
+            <p class="lbl" style="margin-bottom: var(--s-2)">Alice</p>
+            <input class="in mono" readonly value="https://andrewpeekema.github.io/simple-secret-santa/#2Tx9kQ…" style="font-size: var(--t-note); color: var(--text-2)">
+            <div style="margin-top: var(--s-1)"><button class="btn btn--quiet">Copy link</button></div>
+          </div>
+          <div>
+            <p class="lbl" style="margin-bottom: var(--s-2)">Bob</p>
+            <input class="in mono" readonly value="https://andrewpeekema.github.io/simple-secret-santa/#7fLm2R…" style="font-size: var(--t-note); color: var(--text-2)">
+            <div style="margin-top: var(--s-1)"><button class="btn btn--quiet" style="color: var(--text-2)">✓ Copied</button></div>
+          </div>
+          <div>
+            <p class="lbl" style="margin-bottom: var(--s-2)">Carol</p>
+            <input class="in mono" readonly value="https://andrewpeekema.github.io/simple-secret-santa/#9aVt1W…" style="font-size: var(--t-note); color: var(--text-2)">
+            <div style="margin-top: var(--s-1)"><button class="btn btn--quiet">Copy link</button></div>
+          </div>
+
+          <div class="tint tint--danger note" style="color: var(--danger)">Save these links. Once you leave this page, these specific pairings cannot be recreated.</div>
+
+          <p class="center" style="margin: var(--s-3) 0 0"><button class="link">Edit participants</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ===================== SCREENS 2 & 3 ===================== -->
+  <h2 class="chrome-h" style="font-size:1.25rem">2 · Reveal &nbsp;&nbsp;·&nbsp;&nbsp; 3 · Wishlist — flattened</h2>
+  <p class="chrome-p">One container, hairline rules, one heading, one primary button, navigation as a text link.</p>
+  <div class="screens">
+    <div class="phone">
+      <p class="phone-label"><span>After — reveal</span><span>412 px</span></p>
+      <div class="screen">
+        <div class="card center">
+          <div class="stars"><span class="g">✦</span> <span class="i">✦</span> <span class="a">✦</span> <span class="s">✦</span> <span class="d">✦</span></div>
+          <p class="sec" style="margin: var(--s-4) 0 var(--s-2)">Hello, Alice. You're giving a gift to</p>
+          <h1 class="h" style="color: var(--gold)">Carol</h1>
+          <p class="note" style="margin-top: var(--s-3)">Keep this to yourself.</p>
+
+          <hr class="sep">
+
+          <div class="kv"><span class="sec">Wishlist password</span><span class="mono" style="letter-spacing:.1em; color: var(--accent)">k7mq</span></div>
+          <p class="note" style="margin-top: var(--s-2)">You'll need it to open Carol's wishlist, if they share one.</p>
+
+          <hr class="sep">
+
+          <button class="btn btn--primary btn--block">Create your wishlist</button>
+          <p class="note" style="margin-top: var(--s-2)">Share hints with your own Secret Santa.</p>
+
+          <p style="margin: var(--s-5) 0 0"><button class="link">Start a new exchange</button></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <p class="phone-label"><span>After — wishlist, create</span><span>412 px</span></p>
+      <div class="screen">
+        <div class="card center">
+          <div class="stars"><span class="g">✦</span> <span class="i">✦</span> <span class="a">✦</span> <span class="s">✦</span> <span class="d">✦</span></div>
+          <h1 class="h" style="margin-top: var(--s-4)">Your wishlist</h1>
+          <div style="text-align:left; margin-top: var(--s-4)" class="stack">
+            <textarea class="in" placeholder="Gift ideas, preferences, sizes, favorite things…"></textarea>
+            <p class="note">Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
+            <button class="btn btn--primary btn--block">Generate link</button>
+          </div>
+          <p style="margin: var(--s-5) 0 0"><button class="link">Back</button></p>
+        </div>
+      </div>
+
+      <p class="phone-label" style="margin-top: var(--s-5)"><span>After — wishlist, link ready (replaces the form)</span><span>412 px</span></p>
+      <div class="screen">
+        <div class="card center">
+          <div class="stars"><span class="g">✦</span> <span class="i">✦</span> <span class="a">✦</span> <span class="s">✦</span> <span class="d">✦</span></div>
+          <h1 class="h" style="margin-top: var(--s-4)">Your wishlist</h1>
+          <div class="tint" style="margin-top: var(--s-4); color: var(--accent); font-weight: 500">✓ Link ready</div>
+          <div class="stack" style="text-align:left; margin-top: var(--s-3)">
+            <input class="in mono" readonly value="https://andrewpeekema.github.io/simple-secret-santa/#h3Pq…" style="font-size: var(--t-note); color: var(--text-2)">
+            <button class="btn btn--secondary btn--block">Copy link</button>
+            <p class="note">Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</p>
+          </div>
+          <p style="margin: var(--s-5) 0 0"><button class="link">Back</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+  <p class="note">Mockup only — static HTML, nothing wired. Served from the VM; not committed to the repo yet.</p>
+</div>
+
+<script>
+  const t = document.getElementById('toggle');
+  t.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    t.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    document.body.classList.toggle('proto--serif', b.dataset.v === 'serif');
+    document.body.classList.toggle('proto--sans', b.dataset.v === 'sans');
+  });
+</script>
+</body>
+</html>
