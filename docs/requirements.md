@@ -34,6 +34,9 @@ Project code: SSS. Top-level only. Specs decompose these; they do not restate th
 - REQ-SSS-0010. The UI shall use one fixed colour theme regardless of the device's light/dark
   preference.
   Rationale: One palette to get right, and the page looks the same in every screenshot and share.
+- REQ-SSS-0011. Each wishlist link shall carry its owner's name, readable without the password.
+  Rationale: The view page can say whose wishlist it is before the password is entered, so the
+  Santa knows they have the right link.
 
 ## Draft
 (none)
