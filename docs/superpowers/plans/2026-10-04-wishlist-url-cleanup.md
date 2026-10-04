@@ -625,7 +625,7 @@ Amended spec wording this task implements:
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `node --test test/urls.test.js`
-Expected: FAIL — `shop rule: Target`, the generic `ref, ref_ and tag are kept` test, `shop host without an ID` (the Etsy line), the `keeps variant parameters` test and the idempotence test fail; the rest pass.
+Expected: 4 FAIL — `shop rule: Target`, `generic host: ref, ref_ and tag are kept off the shop hosts`, `shop rule keeps variant parameters in order and spelling`, `shop rule with a kept parameter is idempotent`; 58 pass (`shop host without an ID` already passes: the old code strips `ref`/`tag` everywhere).
 
 - [ ] **Step 3: Implement** — replace `js/urls.js` so that it reads exactly:
 
