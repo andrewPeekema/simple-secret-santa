@@ -31,7 +31,7 @@ const SHOPS = [
     'https://www.walmart.com/ip/345678901'],
   ['Target',
     'https://www.target.com/p/stanley-40oz-quencher-h2-0-tumbler/-/A-87654321?preselect=12345678#lnk=sametab',
-    'https://www.target.com/p/-/A-87654321'],
+    'https://www.target.com/p/-/A-87654321?preselect=12345678'],
   ['Best Buy',
     'https://www.bestbuy.com/site/sony-wh-1000xm5-wireless-headphones-black/6505727.p?skuId=6505727&utm_campaign=gift',
     'https://www.bestbuy.com/site/6505727.p'],
@@ -50,10 +50,47 @@ test('generic host: tracking parameters go, others and the fragment stay', () =>
 });
 
 test('generic host: every listed parameter name is removed', () => {
-  const names = ['utm_anything', 'ref', 'ref_', 'tag', 'fbclid', 'gclid', 'msclkid',
-    'mc_cid', 'mc_eid', '_ga', 'igshid'];
+  const names = ['utm_anything', 'fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid'];
   const query = names.map(n => `${n}=1`).join('&');
   assert.equal(tidyUrl(`https://blog.example.org/post?${query}`), 'https://blog.example.org/post');
+});
+
+test('generic host: ref, ref_ and tag are kept off the shop hosts (ruling B1)', () => {
+  for (const url of [
+    'https://blog.example.com/posts?tag=wool',
+    'https://github.com/o/r/blob/main/x?ref=v2',
+    'https://blog.example.org/post?ref_=1&tag=2',
+  ]) assert.equal(tidyUrl(url), url);
+});
+
+test('shop host without an ID: ref, ref_ and tag go too (ruling B1)', () => {
+  assert.equal(tidyUrl('https://www.amazon.com/s?tag=x-20&keywords=socks'),
+    'https://www.amazon.com/s?keywords=socks');
+  assert.equal(tidyUrl('https://www.etsy.com/shop/Knits?ref_=a&ref=b&section_id=7'),
+    'https://www.etsy.com/shop/Knits?section_id=7');
+});
+
+test('shop rule keeps variant parameters in order and spelling (ruling B1)', () => {
+  assert.equal(tidyUrl('https://www.target.com/p/tumbler/-/A-12345678?preselect=87654321&utm_source=x'),
+    'https://www.target.com/p/-/A-12345678?preselect=87654321');
+  assert.equal(tidyUrl('https://www.ebay.com/itm/Camera/123456789012?var=987654321098&hash=abc'),
+    'https://www.ebay.com/itm/123456789012?var=987654321098');
+  assert.equal(tidyUrl('https://www.etsy.com/listing/123/scarf?variation0=1&ref=x&variation1=2'),
+    'https://www.etsy.com/listing/123?variation0=1&variation1=2');
+  assert.equal(tidyUrl('https://www.etsy.com/listing/123/scarf?variation1=%32&variation0=1#r'),
+    'https://www.etsy.com/listing/123?variation1=%32&variation0=1');
+});
+
+test('shop rule: kept parameters belong to their own shop only', () => {
+  assert.equal(tidyUrl('https://www.amazon.com/x/dp/B0ABCDEFGH?var=1&preselect=2&variation0=3'),
+    'https://www.amazon.com/dp/B0ABCDEFGH');
+});
+
+test('shop rule with a kept parameter is idempotent', () => {
+  for (const url of [
+    'https://www.target.com/p/-/A-12345678?preselect=87654321',
+    'https://www.etsy.com/listing/123?variation0=1&variation1=2',
+  ]) assert.equal(tidyUrl(url), url);
 });
 
 test('generic host: a percent-encoded tracking name is recognised', () => {

@@ -3,9 +3,10 @@
 // Pure string work: no DOM, no imports, nothing fetched (REQ-SSS-0004).
 
 // Query parameters removed from any URL: these exact names, plus any name
-// starting utm_.
-const TRACKING = new Set(['ref', 'ref_', 'tag', 'fbclid', 'gclid', 'msclkid',
-  'mc_cid', 'mc_eid', '_ga', 'igshid']);
+// starting utm_. On the shop hosts (when no shop rule applied) SHOP_TRACKING
+// goes too; elsewhere those names are as likely content as tracking (ruling B1).
+const TRACKING = new Set(['fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid']);
+const SHOP_TRACKING = new Set(['ref', 'ref_', 'tag']);
 
 // "Any TLD": at most one label before the brand, one or two short labels
 // after it — www.amazon.co.uk matches, media-amazon.com does not.
@@ -16,16 +17,21 @@ const EBAY = anyTld('ebay');
 const bare = domain => host => host === domain || host === 'www.' + domain;
 
 // First matching row wins. `id` is applied to url.pathname; its first group
-// goes into `path`.
+// goes into `path`. `keep` names the variant-selecting query parameters the
+// short form carries over (ruling B1).
 const SHOPS = [
   { host: h => AMAZON.test(h),
     id: /\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?![A-Za-z0-9])/,
-    path: id => `/dp/${id}` },
-  { host: bare('etsy.com'), id: /\/listing\/(\d+)/, path: id => `/listing/${id}` },
-  { host: h => EBAY.test(h), id: /\/itm\/(?:[^/]+\/)?(\d{9,15})/, path: id => `/itm/${id}` },
-  { host: bare('walmart.com'), id: /\/ip\/(?:[^/]+\/)?(\d+)/, path: id => `/ip/${id}` },
-  { host: bare('target.com'), id: /\/p\/(?:[^/]+\/)?-\/A-(\d+)/, path: id => `/p/-/A-${id}` },
-  { host: bare('bestbuy.com'), id: /\/site\/(?:[^/]+\/)?(\d+)\.p/, path: id => `/site/${id}.p` },
+    path: id => `/dp/${id}`, keep: [] },
+  { host: bare('etsy.com'), id: /\/listing\/(\d+)/, path: id => `/listing/${id}`,
+    keep: ['variation0', 'variation1'] },
+  { host: h => EBAY.test(h), id: /\/itm\/(?:[^/]+\/)?(\d{9,15})/, path: id => `/itm/${id}`,
+    keep: ['var'] },
+  { host: bare('walmart.com'), id: /\/ip\/(?:[^/]+\/)?(\d+)/, path: id => `/ip/${id}`, keep: [] },
+  { host: bare('target.com'), id: /\/p\/(?:[^/]+\/)?-\/A-(\d+)/, path: id => `/p/-/A-${id}`,
+    keep: ['preselect'] },
+  { host: bare('bestbuy.com'), id: /\/site\/(?:[^/]+\/)?(\d+)\.p/, path: id => `/site/${id}.p`,
+    keep: [] },
 ];
 
 // Characters a URL can hold as written: RFC 3986's unreserved and reserved
@@ -46,38 +52,59 @@ function discardableTail(url, idPattern) {
   return tail === '' || (/^[/?#]/.test(tail) && !foreign(tail));
 }
 
-function isTracking(pair) {
+// A pair's name: the part before the first =, percent-decoded where possible.
+function pairName(pair) {
   const raw = pair.split('=')[0];
-  let name;
-  try { name = decodeURIComponent(raw); } catch { name = raw; }
-  return name.startsWith('utm_') || TRACKING.has(name);
+  try { return decodeURIComponent(raw); } catch { return raw; }
+}
+
+// The query of `url` as written: where its ? sits, where it ends (the # or
+// the end of the string), and its &-separated pairs. Null when there is none.
+function queryOf(url) {
+  const hash = url.indexOf('#');
+  const end = hash === -1 ? url.length : hash;
+  const q = url.indexOf('?');
+  if (q === -1 || q > end) return null;
+  return { q, end, pairs: url.slice(q + 1, end).split('&') };
+}
+
+function isTracking(pair, onShop) {
+  const name = pairName(pair);
+  return name.startsWith('utm_') || TRACKING.has(name) || (onShop && SHOP_TRACKING.has(name));
 }
 
 // Removes tracking pairs from the query as written in `url`, leaving every
 // other character alone. Returns `url` itself when nothing is removed.
-function stripTracking(url) {
-  const hash = url.indexOf('#');
-  const end = hash === -1 ? url.length : hash;
-  const q = url.indexOf('?');
-  if (q === -1 || q > end) return url;
-  const pairs = url.slice(q + 1, end).split('&');
-  const kept = pairs.filter(pair => !isTracking(pair) || foreign(pair));
+function stripTracking(url, onShop) {
+  const query = queryOf(url);
+  if (!query) return url;
+  const { q, end, pairs } = query;
+  const kept = pairs.filter(pair => !isTracking(pair, onShop) || foreign(pair));
   if (kept.length === pairs.length) return url;
-  const query = kept.length ? '?' + kept.join('&') : '';
-  return url.slice(0, q) + query + url.slice(end);
+  const rest = kept.length ? '?' + kept.join('&') : '';
+  return url.slice(0, q) + rest + url.slice(end);
+}
+
+// The `keep` pairs of the query as written, in order and spelling, as a
+// query string ('' when there are none).
+function keptQuery(url, keep) {
+  const query = queryOf(url);
+  const kept = query ? query.pairs.filter(pair => keep.includes(pairName(pair))) : [];
+  return kept.length ? '?' + kept.join('&') : '';
 }
 
 export function tidyUrl(url) {
   let parsed;
   try { parsed = new URL(url); } catch { return url; }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return url;
-  for (const shop of SHOPS) {
-    if (!shop.host(parsed.hostname)) continue;
+  const shop = SHOPS.find(row => row.host(parsed.hostname));
+  if (shop) {
     const m = shop.id.exec(parsed.pathname);
-    if (m && discardableTail(url, shop.id)) return parsed.origin + shop.path(m[1]);
-    break; // otherwise the generic rule
+    if (m && discardableTail(url, shop.id)) {
+      return parsed.origin + shop.path(m[1]) + keptQuery(url, shop.keep);
+    }
   }
-  return stripTracking(url);
+  return stripTracking(url, Boolean(shop)); // the generic rule
 }
 
 const URL_RUN = /https?:\/\/[^\s<>"']+/gi;
