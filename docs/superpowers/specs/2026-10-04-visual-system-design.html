@@ -65,7 +65,8 @@ screen, as the greeting in §5.3).</p>
 <p><strong>Added later (user ruling 2026-10-04, requirements commit c30079d):</strong> REQ-SSS-0011 (each wishlist link carries its owner's
 name, readable without the password), decomposed as 0011.1 the hash is <code>h-</code> + base64url(name) + <code>.</code> + ciphertext
 (<code>encodeHintName</code> / <code>splitHintLink</code> in <code>js/format.js</code>); 0011.2 the view screen's heading is
-"<em>Name</em>'s wishlist" (§5.6); 0011.3 a link with no name segment decodes as before and is headed "Wishlist".</p>
+"<em>Name</em>'s wishlist" (§5.6); 0011.3 a link without a readable, non-empty name segment is reported as "Invalid hint link!" (no
+compatibility with earlier wishlist links &mdash; none had been deployed; user 2026-10-04).</p>
 
 <h2>0. Rulings</h2>
 <table>
@@ -270,7 +271,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 
 <h3>5.6 Wishlist view (<code>#viewHintsSection</code>)</h3>
 <ol>
-<li>Stars; heading "<em>Name</em>'s wishlist", where <em>Name</em> is the owner's name from the link (REQ-SSS-0011.2); "Wishlist" for a link with no name segment (0011.3).</li>
+<li>Stars; heading "<em>Name</em>'s wishlist", where <em>Name</em> is the owner's name from the link (REQ-SSS-0011.2).</li>
 <li>Body text-2 "Enter the password from your assignment page."; <code>input#passwordInput.in.in--password</code>, <code>maxlength="6"</code>, no <code>text-transform</code>; "Decode" (primary, block).</li>
 <li><code>#decodedHints</code>: on success, a <code>.tint</code> "Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
 <li>Text link "Start a new exchange" (<code>location.href = location.pathname</code>, as today &mdash; someone who opened a wishlist link has no assignment screen behind it, so "Back" would be the wrong label). It stays visible under the decoded list.</li>

@@ -10,11 +10,11 @@ import { showCreateHints, generateHintLink, showViewHints, tryDecodeHintsWithPas
                 
                 // Handle wishlist links
                 if (hash.startsWith('h-')) {
-                    const { name, payload } = splitHintLink(hash.substring(2));
-                    const encryptedData = await decodeHints(payload);
+                    const link = splitHintLink(hash.substring(2));
+                    const encryptedData = link && await decodeHints(link.payload);
                     
                     if (encryptedData) {
-                        showViewHints(encryptedData, name);
+                        showViewHints(encryptedData, link.name);
                     } else {
                         showError("Invalid hint link!");
                     }

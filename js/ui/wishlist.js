@@ -85,8 +85,8 @@ export async function generateHintLink() {
     `;
 }
 
-// ownerName is null for a link made before names were carried (REQ-SSS-0011).
-export function showViewHints(encryptedBytes, ownerName = null) {
+// ownerName comes from the link itself (REQ-SSS-0011).
+export function showViewHints(encryptedBytes, ownerName) {
     document.getElementById('mainContainer').style.display = 'none';
     document.getElementById('setupSection').style.display = 'none';
     document.getElementById('revealSection').style.display = 'none';
@@ -98,7 +98,7 @@ export function showViewHints(encryptedBytes, ownerName = null) {
 
     viewHintsSection.innerHTML = `
         ${STARS_HTML}
-        <h1>${ownerName ? escapeHtml(ownerName) + "'s wishlist" : 'Wishlist'}</h1>
+        <h1>${escapeHtml(ownerName)}'s wishlist</h1>
         <div id="viewHintsForm" class="mt-5">
             <p class="secondary">Enter the password from your assignment page.</p>
             <input type="text" id="passwordInput" class="in in--password mt-3" placeholder="Password" maxlength="6">

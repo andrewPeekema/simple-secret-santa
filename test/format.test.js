@@ -60,12 +60,9 @@ test("a wishlist link carries its owner's name in front of the ciphertext", asyn
   assert.equal(Buffer.from(plain.slice(2)).toString('utf8'), 'Wool socks');
 });
 
-test('a wishlist link made before the name was added has no owner and still decodes', async () => {
+test('a wishlist link without a readable name segment is invalid', async () => {
   const ciphertext = await encodeHints('Wool socks', 'abc123');
-  assert.deepEqual(splitHintLink(ciphertext), { name: null, payload: ciphertext });
-});
-
-test('an unreadable or empty name segment leaves the payload usable', () => {
-  assert.deepEqual(splitHintLink('%%%.AbC_-9'), { name: null, payload: 'AbC_-9' });
-  assert.deepEqual(splitHintLink('.AbC_-9'), { name: null, payload: 'AbC_-9' });
+  assert.equal(splitHintLink(ciphertext), null, 'no separator');
+  assert.equal(splitHintLink('.' + ciphertext), null, 'empty name');
+  assert.equal(splitHintLink('%%%.' + ciphertext), null, 'unreadable name');
 });
