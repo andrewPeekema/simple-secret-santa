@@ -27,7 +27,7 @@ export function showCreateHints(recipientName, salt) {
         <h1>Your wishlist</h1>
         <div id="hintsForm" class="left mt-5">
             <textarea id="hintsText" class="in" placeholder="Gift ideas, preferences, sizes, favorite things…"></textarea>
-            <p class="note mt-2">Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
+            <p class="note mt-2">Wishlists are gift-wrapped, not locked up. Keep anything private off them. 🎁</p>
             <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
             <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
             <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
