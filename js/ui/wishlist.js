@@ -7,6 +7,7 @@ import { encodeHints, encodeHintName } from '../format.js';
 import { simpleHash, crc16, xorDecrypt } from '../secret.js';
 import { decompressBytes } from '../compress.js';
 import { bytesToUtf8 } from '../codec.js';
+import { tidyUrls } from '../urls.js';
 
 const INVALID_PASSWORD_HTML = `
             <div class="tint tint--danger note mt-3">Invalid password. Only the assigned Secret Santa has the correct password.</div>
@@ -57,7 +58,16 @@ export async function generateHintLink() {
         return;
     }
 
-    if (hintsText.length > 2000) {
+    // Shop links are cut to their short form before encoding, and the owner
+    // sees the cleaned text in the textarea (REQ-SSS-0003.1, .2).
+    const tidy = tidyUrls(hintsText);
+    if (tidy.shortened > 0) {
+        const textarea = document.getElementById('hintsText');
+        textarea.value = tidy.text;
+        textarea.dispatchEvent(new Event('input'));
+    }
+
+    if (tidy.text.length > 2000) {
         if (!confirm('Your hints are very long and may create a URL that doesn\'t work in all browsers or apps. Continue anyway?')) {
             return;
         }
@@ -65,13 +75,16 @@ export async function generateHintLink() {
 
     const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
 
-    const encoded = await encodeHints(hintsText, hintPassword);
+    const encoded = await encodeHints(tidy.text, hintPassword);
     // The owner's name rides in front of the ciphertext (REQ-SSS-0011).
     const hintUrl = window.location.origin + window.location.pathname + '#h-' + encodeHintName(recipientName) + '.' + encoded;
 
     // The link replaces the form (spec §5.5). The form is only hidden, so
     // Back on the link screen restores it with the text still in place.
     document.getElementById('hintsForm').style.display = 'none';
+    const shortenedNote = tidy.shortened > 0
+        ? `<p class="note mt-3">Shortened ${tidy.shortened} ${tidy.shortened === 1 ? 'link' : 'links'}.</p>`
+        : '';
     const display = document.getElementById('hintLinkDisplay');
     display.style.display = 'block';
     display.innerHTML = `
@@ -80,6 +93,7 @@ export async function generateHintLink() {
             <input type="text" class="in in--url" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input">
             <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy link</button>
             <p class="note mt-3">Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</p>
+            ${shortenedNote}
         </div>
         <p class="nav"><button class="link" onclick="document.getElementById('hintLinkDisplay').style.display='none'; document.getElementById('hintsForm').style.display='';">Back</button></p>
     `;
