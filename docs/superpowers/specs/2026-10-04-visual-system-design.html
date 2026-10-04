@@ -62,6 +62,10 @@ still shows one giver and one receiver); REQ-SSS-0002 (exclusions &mdash; the fo
 REQ-SSS-0003 and REQ-SSS-0006 (the wishlist password still appears on the Santa's reveal screen, §5.3); REQ-SSS-0005 (no build
 step &mdash; plain CSS custom properties, no preprocessor, no bundler); REQ-SSS-0008 (the giver's name still appears on the reveal
 screen, as the greeting in §5.3).</p>
+<p><strong>Added later (user ruling 2026-10-04, requirements commit c30079d):</strong> REQ-SSS-0011 (each wishlist link carries its owner's
+name, readable without the password), decomposed as 0011.1 the hash is <code>h-</code> + base64url(name) + <code>.</code> + ciphertext
+(<code>encodeHintName</code> / <code>splitHintLink</code> in <code>js/format.js</code>); 0011.2 the view screen's heading is
+"<em>Name</em>'s wishlist" (§5.6); 0011.3 a link with no name segment decodes as before and is headed "Wishlist".</p>
 
 <h2>0. Rulings</h2>
 <table>
@@ -78,6 +82,7 @@ screen, as the greeting in §5.3).</p>
 <tr><td>Back on wishlist screens</td><td>Create screen: returns to the assignment (ruling B1, lead's recommendation, user 2026-10-04). Link-ready screen: returns to the create form with the typed text intact (user 2026-10-04, superseding B1 for that screen). View screens: the link is labelled "Start a new exchange" (user 2026-10-04); it still reloads to the setup page.</td></tr>
 <tr><td>Check marks on status lines</td><td>None: "Link ready", "Wishlist decoded" and "N links ready to share" carry no "✓" (user 2026-10-04). The copy button's "✓ Copied" is unchanged.</td></tr>
 <tr><td>Reveal note</td><td>"Keep this to yourself." removed (user, 2026-10-04).</td></tr>
+<tr><td>Wishlist owner's name</td><td>Carried in plaintext in the link, not inside the encrypted text, so it shows before the password (user 2026-10-04; REQ-SSS-0011).</td></tr>
 <tr><td>Remove buttons</td><td>Only on participant rows added beyond the first three (unchanged behaviour, now also the rule).</td></tr>
 </table>
 
@@ -265,7 +270,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 
 <h3>5.6 Wishlist view (<code>#viewHintsSection</code>)</h3>
 <ol>
-<li>Stars; heading "Wishlist".</li>
+<li>Stars; heading "<em>Name</em>'s wishlist", where <em>Name</em> is the owner's name from the link (REQ-SSS-0011.2); "Wishlist" for a link with no name segment (0011.3).</li>
 <li>Body text-2 "Enter the password from your assignment page."; <code>input#passwordInput.in.in--password</code>, <code>maxlength="6"</code>, no <code>text-transform</code>; "Decode" (primary, block).</li>
 <li><code>#decodedHints</code>: on success, a <code>.tint</code> "Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
 <li>Text link "Start a new exchange" (<code>location.href = location.pathname</code>, as today &mdash; someone who opened a wishlist link has no assignment screen behind it, so "Back" would be the wrong label). It stays visible under the decoded list.</li>
@@ -290,7 +295,7 @@ sets it to "✓ Copied", adds the class <code>is-copied</code>, and after 2000&n
 <li><strong>Selectors.</strong> No id or class listed in §1 is renamed or removed. New classes may be added freely.</li>
 <li><strong>Nesting.</strong> The positions of <code>#mainContainer</code>, <code>#revealSection</code>, <code>#hintsSection</code> and <code>#viewHintsSection</code> in <code>index.html</code>, and the show/hide calls that target them, are unchanged. The comment at <code>index.html:83-93</code> stays. The one structural move is <code>#results</code> out of <code>#setupSection</code> (§5.2); the implementer counts the opening and closing <code>div</code>s of <code>#mainContainer</code> before and after and keeps the three overlay sections where they are.</li>
 <li><strong>Text-reading tests.</strong> <code>test/legacy-removed.test.js</code> reads <code>js/main.js</code> and <code>js/ui/wishlist.js</code> as text. <code>js/main.js</code> must not contain <code>hash.startsWith('hints-')</code>; <code>js/ui/wishlist.js</code> must not contain <code>text.startsWith('VALID:')</code>, <code>.isLegacy</code> or <code>enteredPassword.startsWith('0')</code>, and must contain <code>enteredPassword.length === 5</code> exactly once. Template edits must respect this.</li>
-<li><strong>No logic changes</strong> beyond §5.2, §5.5, §5.6 show/hide and §6. Encoding, assignment, validation, hashing and the hint codec are untouched.</li>
+<li><strong>No logic changes</strong> beyond §5.2, §5.5, §5.6 show/hide and §6. Encoding, assignment, validation, hashing and the hint codec are untouched &mdash; except the later REQ-SSS-0011 addition, which prefixes the owner's name to the wishlist hash and leaves the ciphertext format as it was.</li>
 <li><strong>Escaping.</strong> Every interpolated name or URL continues to pass through <code>escapeHtml</code>; the two <code>value="…"</code> uses stay as they are (URLs contain no quotes).</li>
 <li><strong>Mobile.</strong> Below 480&nbsp;px: card padding <code>--s-4</code>, body padding <code>--s-3</code> <code>--s-2</code>, exclusion rows wrap with each select full width and the ↔ hidden, as today.</li>
 </ul>

@@ -3,7 +3,7 @@
 // the window shim at click time. Kept here as the only greppable trace of
 // that dependency.
 import { escapeHtml, copyToClipboard, STARS_HTML } from './dom.js';
-import { encodeHints } from '../format.js';
+import { encodeHints, encodeHintName } from '../format.js';
 import { simpleHash, crc16, xorDecrypt } from '../secret.js';
 import { decompressBytes } from '../compress.js';
 import { bytesToUtf8 } from '../codec.js';
@@ -66,7 +66,8 @@ export async function generateHintLink() {
     const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
 
     const encoded = await encodeHints(hintsText, hintPassword);
-    const hintUrl = window.location.origin + window.location.pathname + '#h-' + encoded;
+    // The owner's name rides in front of the ciphertext (REQ-SSS-0011).
+    const hintUrl = window.location.origin + window.location.pathname + '#h-' + encodeHintName(recipientName) + '.' + encoded;
 
     // The link replaces the form (spec §5.5). The form is only hidden, so
     // Back on the link screen restores it with the text still in place.
@@ -84,7 +85,8 @@ export async function generateHintLink() {
     `;
 }
 
-export function showViewHints(encryptedBytes) {
+// ownerName is null for a link made before names were carried (REQ-SSS-0011).
+export function showViewHints(encryptedBytes, ownerName = null) {
     document.getElementById('mainContainer').style.display = 'none';
     document.getElementById('setupSection').style.display = 'none';
     document.getElementById('revealSection').style.display = 'none';
@@ -96,7 +98,7 @@ export function showViewHints(encryptedBytes) {
 
     viewHintsSection.innerHTML = `
         ${STARS_HTML}
-        <h1>Wishlist</h1>
+        <h1>${ownerName ? escapeHtml(ownerName) + "'s wishlist" : 'Wishlist'}</h1>
         <div id="viewHintsForm" class="mt-5">
             <p class="secondary">Enter the password from your assignment page.</p>
             <input type="text" id="passwordInput" class="in in--password mt-3" placeholder="Password" maxlength="6">

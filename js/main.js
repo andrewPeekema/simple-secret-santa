@@ -1,4 +1,4 @@
-import { decodeAssignment, decodeHints, looksLikeOldLink } from './format.js';
+import { decodeAssignment, decodeHints, splitHintLink, looksLikeOldLink } from './format.js';
 import { copyToClipboard, showError } from './ui/dom.js';
 import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks, editParticipants } from './ui/setup.js';
 import { revealAssignment } from './ui/reveal.js';
@@ -10,11 +10,11 @@ import { showCreateHints, generateHintLink, showViewHints, tryDecodeHintsWithPas
                 
                 // Handle wishlist links
                 if (hash.startsWith('h-')) {
-                    const encoded = hash.substring(2);
-                    const encryptedData = await decodeHints(encoded);
+                    const { name, payload } = splitHintLink(hash.substring(2));
+                    const encryptedData = await decodeHints(payload);
                     
                     if (encryptedData) {
-                        showViewHints(encryptedData);
+                        showViewHints(encryptedData, name);
                     } else {
                         showError("Invalid hint link!");
                     }

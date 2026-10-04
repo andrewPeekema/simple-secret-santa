@@ -61,3 +61,25 @@ export async function decodeHints(encoded) {
         return null;
     }
 }
+
+// A wishlist link carries its owner's name in front of the ciphertext
+// (REQ-SSS-0011): '#h-' + encodeHintName(name) + '.' + ciphertext. Both
+// halves are base64url, which never contains '.', so the first '.' is the
+// split. A link with no '.' predates the name and has no owner; its payload
+// decodes exactly as before. An unreadable name segment is dropped rather
+// than failing the link, since the wishlist itself is intact.
+export function encodeHintName(name) {
+    return bytesToUrlSafeBase64(utf8ToBytes(name));
+}
+
+export function splitHintLink(encoded) {
+    const dot = encoded.indexOf('.');
+    if (dot === -1) return { name: null, payload: encoded };
+    const payload = encoded.substring(dot + 1);
+    try {
+        const name = bytesToUtf8(urlSafeBase64ToBytes(encoded.substring(0, dot)));
+        return { name: name || null, payload };
+    } catch (e) {
+        return { name: null, payload };
+    }
+}
