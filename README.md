@@ -10,7 +10,7 @@ How it works:
 3. Each person sees their assignment and gets a wishlist password
 4. Wishlists are optional — if shared, they're gift-wrapped for the right Santa
 
-Wishlists are gift-wrapped, not locked in a vault. Wrapping paper stops accidental peeking — it won't stop a determined snoop with scissors, so maybe leave your bank PIN off the list. 🎁
+Wishlists are gift-wrapped, not locked up — keep anything private off them. 🎁
 
 This site doesn't store or collect any data — everything runs locally in your browser.
 

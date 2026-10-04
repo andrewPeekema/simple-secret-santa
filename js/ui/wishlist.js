@@ -33,7 +33,7 @@ export function showCreateHints(recipientName, salt) {
             </p>
             <textarea id="hintsText" placeholder="Gift ideas, preferences, sizes, favorite things..."></textarea>
             <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
-                Gift-wrapped, not vault-locked 🎁 — keep the bank PINs off your list.
+                Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁
             </p>
             <p id="hintLengthWarning" style="display: none; color: var(--error); font-size: 12px;"></p>
             <button class="create-hints-btn" onclick="generateHintLink()">
