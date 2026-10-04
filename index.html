@@ -6,12 +6,12 @@
     <title>Secret Santa Generator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container" id="mainContainer">
-        <div class="title-stars">
+    <div class="card" id="mainContainer">
+        <div class="stars">
             <span class="star-gold">✦</span>
             <span class="star-ice">✦</span>
             <span class="star-green">✦</span>
@@ -19,70 +19,65 @@
             <span class="star-red">✦</span>
         </div>
         <h1>Simple Secret Santa</h1>
-        <p class="subtitle">People picking through practically private pairings</p>
-        
+        <p class="tagline">People picking through practically private pairings</p>
+
         <div id="setupSection">
-            <details class="how-it-works">
-                <summary>How It Works</summary>
-                <div class="how-it-works-content">
+            <details class="how">
+                <summary>How it works</summary>
+                <div class="how-body">
                     <ol>
                         <li><strong>Generate pairings</strong> by entering participant names below</li>
                         <li><strong>Share each link privately</strong> with the right person</li>
                         <li><strong>Each person sees their assignment</strong> and gets a wishlist password</li>
-                        <li><strong>Wishlists are optional</strong>—if shared, they're gift-wrapped for the right Santa</li>
+                        <li><strong>Wishlists are optional</strong>—each person can create one for their Santa</li>
                     </ol>
-                    <p>
-                        Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁
-                    </p>
-                    <p>
-                        This site doesn't store or collect any data—everything runs locally in your browser.
-                    </p>
+                    <p>Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
+                    <p>This site doesn't store or collect any data—everything runs locally in your browser.</p>
                 </div>
             </details>
 
-            <h3>Participants</h3>
-            <div id="peopleList">
+            <h2 class="section-title mt-5">Participants</h2>
+            <div id="peopleList" class="mt-2">
                 <div class="person-input">
-                    <input type="text" placeholder="Enter name" class="person-name">
-                </div>
-                <div class="person-input">
-                    <input type="text" placeholder="Enter name" class="person-name">
+                    <input type="text" placeholder="Enter name" class="in person-name">
                 </div>
                 <div class="person-input">
-                    <input type="text" placeholder="Enter name" class="person-name">
+                    <input type="text" placeholder="Enter name" class="in person-name">
+                </div>
+                <div class="person-input">
+                    <input type="text" placeholder="Enter name" class="in person-name">
                 </div>
             </div>
-            <button onclick="addPerson()">+ Add Person</button>
-            
-            <div class="exclusions-section">
-                <h3>Exclusions <span style="font-weight: 400; color: var(--text-muted); font-size: 0.8em;">(Optional)</span></h3>
-                <p class="help-text">Prevent certain pairings (couples, family members, etc.)</p>
-                <div id="exclusionsList"></div>
-                <button class="add-exclusion-btn" onclick="addExclusion()">+ Add Exclusion</button>
-            </div>
-            
-            <button onclick="generateSecretSanta()" style="margin-top: 20px; border-color: var(--green); color: var(--green);">
-                Generate Pairings
-            </button>
-            
-            <div id="results" style="display: none;">
-                <div id="successBanner" class="success-banner"></div>
-                <h3>Distribution Links</h3>
-                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
-                    Send each link privately to the corresponding person.
-                </p>
-                <button id="copyAllBtn" class="copy-btn" style="width: 100%; margin-bottom: 20px;" onclick="copyAllLinks()">Copy All Links</button>
-                <div id="linksList"></div>
-                <div class="warning">
-                    Save these links. Once you leave this page, these specific pairings cannot be recreated.
-                </div>
-                </div>
-            </div>
+            <button class="btn btn--secondary btn--block mt-3" onclick="addPerson()">+ Add person</button>
+
+            <hr class="sep">
+
+            <h2 class="section-title">Exclusions <span class="optional">(optional)</span></h2>
+            <p class="note mt-1">Prevent certain pairings (couples, family members, etc.)</p>
+            <div id="exclusionsList"></div>
+            <button class="btn btn--secondary btn--block mt-3" onclick="addExclusion()">+ Add exclusion</button>
+
+            <hr class="sep">
+
+            <button class="btn btn--primary btn--block" onclick="generateSecretSanta()">Generate pairings</button>
         </div>
+
+        <div id="results" style="display: none;">
+            <div id="successBanner" class="tint"></div>
+            <p class="note mt-3">Send each link privately to the corresponding person.</p>
+            <button id="copyAllBtn" class="btn btn--secondary btn--block mt-3" onclick="copyAllLinks()">Copy all links</button>
+
+            <hr class="sep">
+
+            <div id="linksList"></div>
+            <div class="tint tint--danger note mt-5">Save these links. Once you leave this page, these specific pairings cannot be recreated.</div>
+            <p class="nav"><button class="link" onclick="editParticipants()">Edit participants</button></p>
+        </div>
+    </div>
 
         <!--
             The markup above has one more closing </div> than opening <div>
-            (18 vs 17); the browser silently ignores the stray close, and
+            (17 vs 16); the browser silently ignores the stray close, and
             that is what leaves #revealSection, #hintsSection and
             #viewHintsSection below outside #mainContainer instead of nested
             inside it. This is deliberate-by-accident: each of those three
@@ -91,13 +86,13 @@
             error and wishlist view breaks even though the test suite stays
             green. Do not change this nesting.
         -->
-        <div id="revealSection" style="display: none;">
+        <div id="revealSection" class="card" style="display: none;">
         </div>
 
-        <div id="hintsSection" style="display: none;">
+        <div id="hintsSection" class="card" style="display: none;">
         </div>
 
-        <div id="viewHintsSection" style="display: none;">
+        <div id="viewHintsSection" class="card" style="display: none;">
         </div>
     </div>
 

@@ -8,6 +8,16 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// The row of five stars at the top of every screen. index.html carries the
+// same markup statically for the setup screen.
+export const STARS_HTML = `
+        <div class="stars">
+            <span class="star-gold">✦</span>
+            <span class="star-ice">✦</span>
+            <span class="star-green">✦</span>
+            <span class="star-silver">✦</span>
+            <span class="star-red">✦</span>
+        </div>`;
 
 export async function copyToClipboard(text, button) {
     try {
@@ -24,13 +34,16 @@ export async function copyToClipboard(text, button) {
             document.body.removeChild(textArea);
         }
 
+        // A press while "✓ Copied" is already showing has copied again; leave
+        // the pending restore alone so the button gets its own label back.
+        if (button.classList.contains('is-copied')) return;
+
         const originalText = button.textContent;
-        const originalBg = button.style.background;
-        button.textContent = 'Copied!';
-        button.style.background = '#38a169';
+        button.textContent = '✓ Copied';
+        button.classList.add('is-copied');
         setTimeout(() => {
             button.textContent = originalText;
-            button.style.background = originalBg || '#48bb78';
+            button.classList.remove('is-copied');
         }, 2000);
     } catch (err) {
         alert('Failed to copy. Please select and copy manually.');
@@ -46,17 +59,9 @@ export function showError(message) {
     revealSection.style.display = 'block';
 
     revealSection.innerHTML = `
-        <div class="title-stars">
-            <span class="star-gold">✦</span>
-            <span class="star-ice">✦</span>
-            <span class="star-green">✦</span>
-            <span class="star-silver">✦</span>
-            <span class="star-red">✦</span>
-        </div>
-        <h1>Invalid Link</h1>
-        <div class="error">${escapeHtml(message)}</div>
-        <button onclick="location.href=location.pathname" style="margin-top: 24px;">
-            Start New Exchange
-        </button>
+        ${STARS_HTML}
+        <h1>Invalid link</h1>
+        <div class="tint tint--danger note mt-5">${escapeHtml(message)}</div>
+        <p class="nav"><button class="link" onclick="location.href=location.pathname">Start a new exchange</button></p>
     `;
 }

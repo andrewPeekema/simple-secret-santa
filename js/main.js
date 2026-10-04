@@ -1,6 +1,6 @@
 import { decodeAssignment, decodeHints, looksLikeOldLink } from './format.js';
 import { copyToClipboard, showError } from './ui/dom.js';
-import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks } from './ui/setup.js';
+import { addPerson, addExclusion, updateExclusionDropdowns, generateSecretSanta, copyAllLinks, editParticipants } from './ui/setup.js';
 import { revealAssignment } from './ui/reveal.js';
 import { showCreateHints, generateHintLink, showViewHints, tryDecodeHintsWithPassword } from './ui/wishlist.js';
 
@@ -42,6 +42,7 @@ if (typeof window !== 'undefined') {
         addExclusion,
         generateSecretSanta,
         copyAllLinks,
+        editParticipants,
         copyToClipboard,
         showCreateHints,
         generateHintLink,

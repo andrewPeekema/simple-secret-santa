@@ -14,8 +14,8 @@ export function addPerson() {
     const div = document.createElement('div');
     div.className = 'person-input';
     div.innerHTML = `
-        <input type="text" placeholder="Enter name" class="person-name">
-        <button class="remove-btn" onclick="this.parentElement.remove(); updateExclusionDropdowns();">Remove</button>
+        <input type="text" placeholder="Enter name" class="in person-name">
+        <button class="btn btn--quiet danger" onclick="this.parentElement.remove(); updateExclusionDropdowns();">Remove</button>
     `;
     peopleList.appendChild(div);
 }
@@ -25,14 +25,14 @@ export function addExclusion() {
     const div = document.createElement('div');
     div.className = 'exclusion-row';
     div.innerHTML = `
-        <select class="person1-select">
+        <select class="in person1-select">
             <option value="">Select person...</option>
         </select>
         <span class="arrow">↔</span>
-        <select class="person2-select">
+        <select class="in person2-select">
             <option value="">Select person...</option>
         </select>
-        <button class="remove-exclusion-btn" onclick="this.parentElement.remove()">Remove</button>
+        <button class="btn btn--quiet danger" onclick="this.parentElement.remove()">Remove</button>
     `;
     exclusionsList.appendChild(div);
     updateExclusionDropdowns();
@@ -202,24 +202,34 @@ export function displayResults(assignments) {
         window.generatedLinks.push({ name: person, url: url });
 
         const div = document.createElement('div');
-        div.className = 'link-item';
+        div.className = 'link-entry';
 
         const inputId = 'link-' + Math.random().toString(36).substring(2, 8);
 
         div.innerHTML = `
-            <strong>${escapeHtml(person)}'s link</strong>
-            <input type="text" value="${escapeHtml(url)}" readonly id="${inputId}">
-            <button class="copy-btn" onclick="copyToClipboard(document.getElementById('${inputId}').value, this)">Copy Link</button>
+            <h2 class="section-title">${escapeHtml(person)}</h2>
+            <input type="text" class="in in--url mt-2" value="${escapeHtml(url)}" readonly id="${inputId}">
+            <button class="btn btn--quiet mt-1" onclick="copyToClipboard(document.getElementById('${inputId}').value, this)">Copy link</button>
         `;
 
         linksList.appendChild(div);
     });
 
-    const resultsDiv = document.getElementById('results');
-    resultsDiv.style.display = 'block';
+    // The results replace the form (spec §5.2); the form is only hidden, so
+    // editParticipants() can bring it back with every name and exclusion intact.
+    document.getElementById('setupSection').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    scrollToCard();
+}
 
-    // Auto-scroll to results
-    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+export function editParticipants() {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('setupSection').style.display = 'block';
+    scrollToCard();
+}
+
+function scrollToCard() {
+    document.getElementById('mainContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 export function copyAllLinks() {
