@@ -186,3 +186,35 @@ test('tidyUrls: quotes and angle brackets end a URL', () => {
   assert.deepEqual(tidyUrls('<https://x.example/a?utm_source=1> "https://x.example/b?fbclid=2"'),
     { text: '<https://x.example/a> "https://x.example/b"', shortened: 2 });
 });
+
+// Text glued onto a URL with no space is not part of it and must survive
+// (REQ-SSS-0003.3): no rule may discard it, so the URL is left as written.
+const GLUED = [
+  'https://www.amazon.com/dp/B0ABCDEFGH这个很好',
+  '想要这个https://www.amazon.com/x/dp/B0ABCDEFGH?tag=x。谢谢',
+  'https://www.amazon.com/dp/B0ABCDEFGH,https://www.etsy.com/listing/123/slug',
+  '**https://www.amazon.com/dp/B0ABCDEFGH**',
+  'https://example.com/item?utm_source=x这个很好',
+  'https://example.com/item?a=1&utm_source=x,https://www.etsy.com/listing/1',
+];
+
+for (const text of GLUED) {
+  test(`tidyUrls: glued text survives: ${text}`, () => {
+    assert.deepEqual(tidyUrls(text), { text, shortened: 0 });
+  });
+}
+
+test('an ID followed by more ID characters is not an ID', () => {
+  const url = 'https://www.ebay.com/itm/1234567890123456';
+  assert.equal(tidyUrl(url), url);
+});
+
+test('a non-ASCII slug before the ID still shortens', () => {
+  assert.equal(tidyUrl('https://www.amazon.co.jp/レゴ-ボタニカル/dp/B09HQXYZ12/ref=sr_1_1?th=1'),
+    'https://www.amazon.co.jp/dp/B09HQXYZ12');
+});
+
+test('glued text survives while a tracking pair before it still goes', () => {
+  assert.deepEqual(tidyUrls('https://x.example/a?utm_source=1&size=M这个'),
+    { text: 'https://x.example/a?size=M这个', shortened: 1 });
+});

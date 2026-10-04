@@ -28,6 +28,24 @@ const SHOPS = [
   { host: bare('bestbuy.com'), id: /\/site\/(?:[^/]+\/)?(\d+)\.p/, path: id => `/site/${id}.p` },
 ];
 
+// Characters a URL can hold as written: RFC 3986's unreserved and reserved
+// sets, plus %. Anything else (CJK text, full-width punctuation), or a second
+// scheme, means the matched run swallowed text that is not part of this URL.
+// That text must survive (REQ-SSS-0003.3), so no rule may discard it.
+const URL_CHARS = /^[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]*$/;
+const foreign = s => !URL_CHARS.test(s) || /https?:\/\//i.test(s);
+
+// True when the text after the shop ID in `url`, as written, may be dropped:
+// the ID must be found in the written path, and what follows it must be
+// empty or the rest of a URL — starting /, ? or # with nothing foreign in it.
+function discardableTail(url, idPattern) {
+  const pathEnd = url.search(/[?#]/);
+  const m = idPattern.exec(pathEnd === -1 ? url : url.slice(0, pathEnd));
+  if (!m) return false;
+  const tail = url.slice(m.index + m[0].length);
+  return tail === '' || (/^[/?#]/.test(tail) && !foreign(tail));
+}
+
 function isTracking(pair) {
   const raw = pair.split('=')[0];
   let name;
@@ -43,7 +61,7 @@ function stripTracking(url) {
   const q = url.indexOf('?');
   if (q === -1 || q > end) return url;
   const pairs = url.slice(q + 1, end).split('&');
-  const kept = pairs.filter(pair => !isTracking(pair));
+  const kept = pairs.filter(pair => !isTracking(pair) || foreign(pair));
   if (kept.length === pairs.length) return url;
   const query = kept.length ? '?' + kept.join('&') : '';
   return url.slice(0, q) + query + url.slice(end);
@@ -56,8 +74,8 @@ export function tidyUrl(url) {
   for (const shop of SHOPS) {
     if (!shop.host(parsed.hostname)) continue;
     const m = shop.id.exec(parsed.pathname);
-    if (m) return parsed.origin + shop.path(m[1]);
-    break; // a shop host without an ID in its path gets the generic rule
+    if (m && discardableTail(url, shop.id)) return parsed.origin + shop.path(m[1]);
+    break; // otherwise the generic rule
   }
   return stripTracking(url);
 }
