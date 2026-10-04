@@ -25,9 +25,10 @@
 Target: new <code>js/urls.js</code>, <code>js/ui/wishlist.js</code> (<code>generateHintLink</code> only), new <code>test/urls.test.js</code>,
 one new guard test, <code>README.md</code> (one sentence).<br>
 Companion: <code>docs/superpowers/specs/2026-10-04-visual-system-design.html</code> §5.5 describes the wishlist create and
-link-ready screens this spec adds one line to. Where the two differ about that line, this document wins.</p>
+link-ready screens this spec adds one line to. Where the two differ about that line, this document wins; it also supersedes the companion's
+"no logic changes" constraint (its §5.5 and §7) for <code>generateHintLink</code> only.</p>
 
-<div class="note"><strong>Status: design approved in chat 2026-10-04.</strong> Research question: how can large wishlists make
+<div class="note"><strong>Status: design approved in chat 2026-10-04; critic findings 1&ndash;7 and the three unstated assumptions applied the same day.</strong> Research question: how can large wishlists make
 shorter links? Five ideas were put to the user; the ruling was "do idea 3 (clean up shop URLs), then spike idea 1 (a denser
 Unicode alphabet)". Idea 3 is this spec. Classified bounded; written up as a spec because the user chose to hand it to a lead.
 The spike is out of scope here (§8).</div>
@@ -57,7 +58,7 @@ untouched; only the plaintext changes before it enters the existing codec).</p>
 <tr><td>Which idea</td><td>Idea 3, shop-URL cleanup, first; idea 1 (base2048/base32768 alphabet) to be spiked afterwards; ideas 2 (dictionary deflate) and 4 (short domain, plaintext name) not taken up (user 2026-10-04).</td></tr>
 <tr><td>When, and does the owner see it</td><td>At generate time; the textarea itself is rewritten and a one-line note gives the count. Back from the link-ready screen therefore shows the cleaned text (user 2026-10-04).</td></tr>
 <tr><td>Shops</td><td>Amazon (any TLD), Etsy, eBay (any TLD), Walmart, Target, Best Buy get canonical ID forms. Every other host loses only the tracking parameters listed in §2.2 (design, approved 2026-10-04).</td></tr>
-<tr><td>Host and scheme</td><td>Kept exactly as the user wrote them (lower-cased by the parser). No <code>www.</code> is added or removed and <code>http</code> is not upgraded, so no cleaned link depends on a redirect (design, approved 2026-10-04).</td></tr>
+<tr><td>Host and scheme</td><td>Kept as the user wrote them. On a shop-rule hit the URL is rebuilt from <code>url.origin</code>, so the host comes out lower-case; under the generic rule the URL is edited as text and nothing but the removed parameters changes. No <code>www.</code> is added or removed and <code>http</code> is not upgraded, so no cleaned link depends on a redirect (design, approved 2026-10-04; critic finding 2).</td></tr>
 <tr><td>Short links</td><td><code>a.co</code>, <code>amzn.to</code>, <code>bit.ly</code> and the like are left untouched: expanding them needs a request (REQ-SSS-0004).</td></tr>
 <tr><td>Execution</td><td>Handed to a lead in a worktree on branch <code>wishlist-url-cleanup</code> (user 2026-10-04).</td></tr>
 </table>
@@ -97,20 +98,26 @@ export function tidyUrls(text) // string -&gt; { text: string, shortened: number
 <ul>
 <li><code>tidyUrl</code> parses with <code>new URL(url)</code>. If parsing throws, or the protocol is not <code>http:</code>/<code>https:</code>,
  it returns the input unchanged. It never throws.</li>
-<li>It returns a string <em>different</em> from the input only when a rule actually removed or replaced something; a URL already
- in short form comes back identical (<code>tidyUrl(tidyUrl(u)) === tidyUrl(u)</code>).</li>
-<li><code>tidyUrls</code> finds every maximal run matching <code>/https?:\/\/[^\s&lt;&gt;"']+/g</code>, peels trailing sentence punctuation
- off the run before cleaning and puts it back after (characters <code>.</code> <code>,</code> <code>;</code> <code>:</code> <code>!</code>
- <code>?</code> <code>'</code> <code>"</code>, and a trailing <code>)</code> only when the run contains no <code>(</code>), passes the rest to
- <code>tidyUrl</code>, and counts a URL as shortened when the result differs from the input. Everything outside the matched runs is
- copied verbatim.</li>
+<li>It returns a string <em>different</em> from the input only when a rule actually removed or replaced something; otherwise it
+ returns the input string itself &mdash; never a re-serialised <code>url.href</code>. So <code>https://example.com</code> (no trailing slash),
+ <code>https://Example.com/x</code>, a <code>./a/../b</code> path and a <code>%20</code> in a surviving value all come back byte-identical, and
+ <code>tidyUrl(tidyUrl(u)) === tidyUrl(u)</code>.</li>
+<li><code>tidyUrls</code> finds every maximal run matching <code>/https?:\/\/[^\s&lt;&gt;"']+/gi</code> (the scheme case-insensitive),
+ peels trailing sentence punctuation off the run before cleaning and puts it back after. Peeling repeats until the last character
+ is not one of <code>.</code> <code>,</code> <code>;</code> <code>:</code> <code>!</code> <code>?</code> <code>'</code> <code>"</code>
+ <code>)</code>; a <code>)</code> is peeled only while the remaining run holds more <code>)</code> than <code>(</code> (checked at each
+ step), so <code>(https://…/slug?ref=x).</code> gives back <code>).</code> intact and a Wikipedia-style <code>…_(film)</code> keeps its
+ <code>)</code>. The rest goes to <code>tidyUrl</code>; a URL counts as shortened when the result differs from the input, and the same URL
+ pasted twice counts twice. Everything outside the matched runs is copied verbatim.</li>
 </ul>
 
 <h3>2.2 Rules</h3>
-<p>Host matching is case-insensitive on <code>url.hostname</code>. "Any TLD" means the hostname matches
-<code>/(^|\.)amazon\.[a-z.]{2,}$/</code> (likewise <code>ebay</code>); this excludes <code>media-amazon.com</code> and similar. The ID
-pattern is applied to <code>url.pathname</code>. A shop rule whose ID pattern does not match falls through to the generic rule.
-A shop rule that matches produces <code>origin + path</code> with <strong>no query string and no fragment</strong>.</p>
+<p>Host matching is on <code>url.hostname</code> (already lower-case). "Any TLD" means the hostname matches
+<code>/^(?:[a-z0-9-]+\.)?amazon\.[a-z]{2,3}(?:\.[a-z]{2})?$/</code> (likewise with <code>ebay</code>): at most one label before the
+brand and one or two short labels after it, so <code>www.amazon.co.uk</code> matches and <code>media-amazon.com</code> or
+<code>amazon.com.evil.example</code> do not. The ID pattern is applied to <code>url.pathname</code>. A shop rule whose ID pattern does
+not match falls through to the generic rule. A shop rule that matches produces <code>url.origin</code> + the short-form path in the
+table, with <strong>no query string and no fragment</strong>.</p>
 <table>
 <tr><th>Host</th><th>Path pattern (first match)</th><th>Short form</th></tr>
 <tr><td>Amazon, any TLD</td><td><code>/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?![A-Za-z0-9])</code></td><td><code>&lt;origin&gt;/dp/&lt;ASIN&gt;</code></td></tr>
@@ -119,14 +126,16 @@ A shop rule that matches produces <code>origin + path</code> with <strong>no que
 <tr><td><code>walmart.com</code>, <code>www.walmart.com</code></td><td><code>/ip/(?:[^/]+/)?(\d+)</code></td><td><code>&lt;origin&gt;/ip/&lt;id&gt;</code></td></tr>
 <tr><td><code>target.com</code>, <code>www.target.com</code></td><td><code>/p/(?:[^/]+/)?-/A-(\d+)</code></td><td><code>&lt;origin&gt;/p/-/A-&lt;id&gt;</code></td></tr>
 <tr><td><code>bestbuy.com</code>, <code>www.bestbuy.com</code></td><td><code>/site/(?:[^/]+/)?(\d+)\.p</code></td><td><code>&lt;origin&gt;/site/&lt;sku&gt;.p</code></td></tr>
-<tr><td>Every other host, and a shop host whose pattern did not match</td><td>&mdash;</td><td>Same URL with these query parameters removed: any name starting <code>utm_</code>, and exactly <code>ref</code>, <code>ref_</code>, <code>tag</code>, <code>fbclid</code>, <code>gclid</code>, <code>msclkid</code>, <code>mc_cid</code>, <code>mc_eid</code>, <code>_ga</code>, <code>igshid</code>. All other parameters keep their order and values; an emptied query drops its <code>?</code>; the fragment is kept.</td></tr>
+<tr><td>Every other host, and a shop host whose pattern did not match</td><td>&mdash;</td><td>The input string with these query parameters removed: any name starting <code>utm_</code>, and exactly <code>ref</code>, <code>ref_</code>, <code>tag</code>, <code>fbclid</code>, <code>gclid</code>, <code>msclkid</code>, <code>mc_cid</code>, <code>mc_eid</code>, <code>_ga</code>, <code>igshid</code>. This is text surgery on <code>url.search</code>: split on <code>&amp;</code>, drop the pairs whose name (the part before the first <code>=</code>, percent-decoded) is listed, re-join, and splice the result back into the original string in place of the original search text &mdash; not <code>URLSearchParams</code> + <code>href</code>. Other pairs keep their order and exact spelling; an emptied query drops its <code>?</code>; the fragment is kept; when nothing is dropped the input string is returned as is.</td></tr>
 </table>
 <p><strong>Not done, deliberately:</strong> no <code>www.</code> or trailing-slash normalisation on generic hosts; no scheme change; no
 percent-decoding; no expansion of short links; no rule for a host not in the table even when its URL looks like a product page.
 <code>ASIN</code> is matched upper-case only, as Amazon issues them.</p>
 
 <h2>3. The generate flow (REQ-SSS-0003.2)</h2>
-<p>In <code>generateHintLink()</code>, after the empty-text alert and before the 2000-character confirm:</p>
+<p>In <code>generateHintLink()</code>, after the empty-text alert and before the 2000-character confirm. <code>hintsText</code> is
+already <code>.trim()</code>med at this point, so the rewrite below writes the trimmed, cleaned text back; the owner's leading or
+trailing whitespace goes, as it already does at encode time.</p>
 <ol>
 <li><code>const tidy = tidyUrls(hintsText);</code></li>
 <li>If <code>tidy.shortened &gt; 0</code>: set <code>#hintsText.value = tidy.text</code> and dispatch <code>new Event('input')</code> on it so
@@ -135,8 +144,8 @@ percent-decoding; no expansion of short links; no rule for a host not in the tab
 <li>Use <code>tidy.text</code> for the 2000-character confirm, for <code>encodeHints</code>, and for nothing else; the password derivation
  and URL assembly are unchanged.</li>
 <li>In the link-ready template, immediately after the existing "Share it with the group…" note, add
- <code>&lt;p class="note mt-3"&gt;Shortened N shop links.&lt;/p&gt;</code> only when <code>tidy.shortened &gt; 0</code>
- ("Shortened 1 shop link." for one). Nothing is added when nothing was shortened.</li>
+ <code>&lt;p class="note mt-3"&gt;Shortened N links.&lt;/p&gt;</code> only when <code>tidy.shortened &gt; 0</code>
+ ("Shortened 1 link." for one). Nothing is added when nothing was shortened.</li>
 </ol>
 <p>Import: <code>import { tidyUrls } from '../urls.js';</code> beside the existing imports. Back from the link-ready screen keeps
 hiding/showing the form as today, so it shows the cleaned text; no state is saved.</p>
@@ -144,7 +153,7 @@ hiding/showing the form as today, so it shows the cleaned text; no state is save
 <h2>4. Copy (REQ-SSS-0007)</h2>
 <table>
 <tr><th>Where</th><th>String</th><th>Note</th></tr>
-<tr><td>Link-ready screen, <code>.note</code></td><td>Shortened N shop links. / Shortened 1 shop link.</td><td>States a fact about length; says nothing about privacy or protection.</td></tr>
+<tr><td>Link-ready screen, <code>.note</code></td><td>Shortened N links. / Shortened 1 link.</td><td>Counts every URL that changed, including non-shop URLs that only lost tracking parameters, so it does not say "shop" (user 2026-10-04, critic finding 3). States a fact about length; says nothing about privacy or protection.</td></tr>
 <tr><td><code>README.md</code>, after item 4 (line 11), as a continuation of that item</td><td>Shop links in a wishlist are trimmed to their short form so the wishlist link stays short.</td><td>Consistent with line 15 ("everything runs locally"): nothing is fetched.</td></tr>
 </table>
 
@@ -154,12 +163,13 @@ hiding/showing the form as today, so it shows the cleaned text; no state is save
 <ul>
 <li>One case per shop row in §2.2 using a realistic long URL (slug, <code>ref=</code>, <code>?th=1&amp;psc=1</code>, <code>utm_</code>) &rarr; the exact short form; include <code>amazon.co.uk</code> and an Etsy URL with a <code>/uk/</code> locale segment.</li>
 <li>Generic host: <code>https://shop.example.com/item?variant=3&amp;utm_source=x&amp;fbclid=y#reviews</code> &rarr; <code>https://shop.example.com/item?variant=3#reviews</code>.</li>
-<li>Unchanged: an unknown host with no tracking params; <code>https://a.co/d/abc123</code>; an Amazon URL with no ASIN in its path but a tracking param (loses only the param); <code>https://m.media-amazon.com/images/I/x.jpg</code>; a <code>mailto:</code> or <code>ftp://</code> URL; the string <code>https://</code> alone; a URL already in short form (identity).</li>
-<li><code>tidyUrls</code>: text with two shop URLs and prose &rarr; both replaced, prose byte-identical, <code>shortened === 2</code>; a URL followed by <code>.</code> and one wrapped in <code>(…)</code> keep their punctuation outside the URL; text with no URL &rarr; same text, <code>shortened === 0</code>; a Wikipedia-style URL ending in <code>)</code> with a <code>(</code> inside keeps the <code>)</code>.</li>
+<li>Unchanged, byte-identical: <code>https://example.com</code> (no slash); <code>https://Example.com/x</code>; <code>https://shop.example.com/a?q=a%20b&amp;utm_z=1</code> &rarr; <code>https://shop.example.com/a?q=a%20b</code> (the <code>%20</code> survives as written); <code>HTTPS://WWW.AMAZON.COM/dp/B0ABCDEFGH?tag=x</code> &rarr; <code>https://www.amazon.com/dp/B0ABCDEFGH</code> via <code>tidyUrls</code>; an unknown host with no tracking params; <code>https://a.co/d/abc123</code>; an Amazon URL with no ASIN in its path but a tracking param (loses only the param); <code>https://m.media-amazon.com/images/I/x.jpg</code>; a <code>mailto:</code> or <code>ftp://</code> URL; the string <code>https://</code> alone; a URL already in short form (identity).</li>
+<li><code>tidyUrls</code>: text with two shop URLs and prose &rarr; both replaced, prose byte-identical, <code>shortened === 2</code>; a URL followed by <code>.</code>, one wrapped in <code>(…)</code>, and one in the form <code>(https://www.etsy.com/listing/123/slug?ref=x).</code> (&rarr; <code>(https://www.etsy.com/listing/123).</code>) keep their punctuation outside the URL; the same shop URL pasted twice gives <code>shortened === 2</code>; text with no URL &rarr; same text, <code>shortened === 0</code>; a Wikipedia-style URL ending in <code>)</code> with a <code>(</code> inside keeps the <code>)</code>.</li>
 </ul>
 <h3>5.2 Guard (new test in <code>test/templates.test.js</code> or a new file)</h3>
 <p>Reads <code>js/ui/wishlist.js</code> as text and asserts it imports <code>tidyUrls</code> from <code>'../urls.js'</code> and that the call
-<code>tidyUrls(</code> appears before <code>encodeHints(</code> inside <code>generateHintLink</code>. There are no DOM tests in this repo; this
+<code>tidyUrls(</code> appears before <code>encodeHints(</code> within the text of the function itself (slice from
+<code>export async function generateHintLink</code> to the next <code>export</code>), not in the import block. There are no DOM tests in this repo; this
 pins the wiring the way the other guard tests do.</p>
 <h3>5.3 Existing suites</h3>
 <p><code>test/templates.test.js</code> scans <code>js/ui/wishlist.js</code>: the new <code>&lt;p&gt;</code> uses only <code>note</code> and <code>mt-3</code>,
@@ -168,8 +178,8 @@ no inline style, no colour. <code>test/legacy-removed.test.js</code> strings (§
 
 <h2>6. Manual check</h2>
 <p>The director runs it on the VM copy after merge: open an assignment link, create a wishlist containing one long Amazon URL
-followed by a full stop, one Etsy URL in parentheses and one unknown-host URL with <code>?size=M</code>; Generate. Expect: the textarea
-shows the two short forms with the punctuation intact and the unknown URL unchanged; the link-ready screen shows "Shortened 2 shop
+followed by a full stop, one Etsy URL in the form <code>(…).</code> and one unknown-host URL with <code>?size=M</code>; Generate. Expect: the textarea
+shows the two short forms with the punctuation intact and the unknown URL unchanged; the link-ready screen shows "Shortened 2
 links."; Back shows the cleaned text; opening the wishlist link with the password shows the cleaned text.</p>
 
 <h2>7. Constraints on the implementation</h2>
