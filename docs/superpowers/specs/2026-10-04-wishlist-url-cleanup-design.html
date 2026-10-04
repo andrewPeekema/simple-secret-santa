@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Wishlist URL Cleanup</title>
+<style>
+ :root{--ink:#1a1a1a;--mut:#5c6670;--line:#dfe3e8;--accent:#2f5d8a;--warn:#8a5a2f;--bg:#fbfcfd}
+ body{max-width:52rem;margin:0 auto;padding:2.5rem 1.5rem 6rem;background:var(--bg);color:var(--ink);
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif}
+ h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.02em}
+ h2{font-size:1.3rem;margin:2.6rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--line)}
+ h3{font-size:1.02rem;margin:1.6rem 0 .4rem;color:var(--accent)}
+ .byline{color:var(--mut);font-size:.9rem;margin-bottom:2rem}
+ table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+ th,td{border:1px solid var(--line);padding:.5rem .65rem;text-align:left;vertical-align:top}
+ th{background:#eef2f6;font-weight:600}
+ code{background:#eceff3;padding:.1rem .33rem;border-radius:3px;font-size:.88em;font-family:ui-monospace,Menlo,monospace}
+ pre{background:#1f2530;color:#e6edf3;padding:.9rem 1.1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+ pre code{background:none;color:inherit;padding:0}
+ .note{border-left:4px solid var(--accent);background:#eef4fa;padding:.75rem 1rem;margin:1.1rem 0;border-radius:0 4px 4px 0}
+ .warn{border-left-color:var(--warn);background:#faf3ea}
+ ul,ol{padding-left:1.35rem}li{margin:.3rem 0}
+</style></head><body>
+
+<h1>Wishlist URL Cleanup</h1>
+<p class="byline">Design spec &middot; 2026-10-04 &middot; Simple Secret Santa<br>
+Target: new <code>js/urls.js</code>, <code>js/ui/wishlist.js</code> (<code>generateHintLink</code> only), new <code>test/urls.test.js</code>,
+one new guard test, <code>README.md</code> (one sentence).<br>
+Companion: <code>docs/superpowers/specs/2026-10-04-visual-system-design.html</code> §5.5 describes the wishlist create and
+link-ready screens this spec adds one line to. Where the two differ about that line, this document wins.</p>
+
+<div class="note"><strong>Status: design approved in chat 2026-10-04.</strong> Research question: how can large wishlists make
+shorter links? Five ideas were put to the user; the ruling was "do idea 3 (clean up shop URLs), then spike idea 1 (a denser
+Unicode alphabet)". Idea 3 is this spec. Classified bounded; written up as a spec because the user chose to hand it to a lead.
+The spike is out of scope here (§8).</div>
+
+<h2>Requirements</h2>
+<p><strong>Decomposes</strong></p>
+<ul>
+<li><strong>REQ-SSS-0003</strong> &mdash; a participant can create an optional wishlist from the assignment link that only their Santa can open.
+ <ul>
+ <li>REQ-SSS-0003.1 When the wishlist link is generated, every <code>http(s)</code> URL in the text that matches a rule in §2.2
+  shall be replaced by that rule's short form before the text is encoded.</li>
+ <li>REQ-SSS-0003.2 The owner shall see the cleaned text: the textarea is rewritten with it, and the link-ready screen
+  states how many links were shortened (§3).</li>
+ <li>REQ-SSS-0003.3 A URL that no rule changes, and all text that is not a URL, shall be carried through unchanged,
+  character for character.</li>
+ </ul></li>
+</ul>
+<p><strong>Consulted, not changed:</strong> REQ-SSS-0004 (no participant data to any server &mdash; the cleanup is string work in the
+browser; no URL is fetched, so short links such as <code>a.co</code> and <code>amzn.to</code> cannot be expanded and are left alone);
+REQ-SSS-0005 (no build step &mdash; a plain ES module, no dependency); REQ-SSS-0007 (the one new UI string claims nothing about
+protection, §4); REQ-SSS-0006 and REQ-SSS-0011 (the password and the link format <code>#h-&lt;name&gt;.&lt;ciphertext&gt;</code> are
+untouched; only the plaintext changes before it enters the existing codec).</p>
+
+<h2>0. Rulings</h2>
+<table>
+<tr><th>Question</th><th>Ruling</th></tr>
+<tr><td>Which idea</td><td>Idea 3, shop-URL cleanup, first; idea 1 (base2048/base32768 alphabet) to be spiked afterwards; ideas 2 (dictionary deflate) and 4 (short domain, plaintext name) not taken up (user 2026-10-04).</td></tr>
+<tr><td>When, and does the owner see it</td><td>At generate time; the textarea itself is rewritten and a one-line note gives the count. Back from the link-ready screen therefore shows the cleaned text (user 2026-10-04).</td></tr>
+<tr><td>Shops</td><td>Amazon (any TLD), Etsy, eBay (any TLD), Walmart, Target, Best Buy get canonical ID forms. Every other host loses only the tracking parameters listed in §2.2 (design, approved 2026-10-04).</td></tr>
+<tr><td>Host and scheme</td><td>Kept exactly as the user wrote them (lower-cased by the parser). No <code>www.</code> is added or removed and <code>http</code> is not upgraded, so no cleaned link depends on a redirect (design, approved 2026-10-04).</td></tr>
+<tr><td>Short links</td><td><code>a.co</code>, <code>amzn.to</code>, <code>bit.ly</code> and the like are left untouched: expanding them needs a request (REQ-SSS-0004).</td></tr>
+<tr><td>Execution</td><td>Handed to a lead in a worktree on branch <code>wishlist-url-cleanup</code> (user 2026-10-04).</td></tr>
+</table>
+
+<h2>1. Facts</h2>
+<p>From an Explore pass on 2026-10-04 at <code>main</code> f2e601c; the lead verifies before relying on a line number.</p>
+<ul>
+<li>The create screen is rendered by <code>showCreateHints</code> (<code>js/ui/wishlist.js:15-48</code>). The textarea is
+ <code>&lt;textarea id="hintsText" class="in"&gt;</code> (line 29); the 1500-character warning is
+ <code>&lt;p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"&gt;</code> (line 31), driven by an
+ <code>input</code> listener (lines 38-47) that reads <code>this.value.length</code>.</li>
+<li><code>generateHintLink()</code> (lines 50-86): reads <code>#hintsText</code> trimmed; alerts if empty; confirms above 2000
+ characters; derives the password; <code>await encodeHints(hintsText, hintPassword)</code>; builds the URL; hides
+ <code>#hintsForm</code> and fills <code>#hintLinkDisplay</code> with the link-ready template (lines 77-85): a
+ <code>.tint</code> "Link ready", the read-only URL input, the copy button, the note "Share it with the group. Whoever has your
+ wishlist password—your Secret Santa—can open it." and the Back link.</li>
+<li>There is no URL handling anywhere in <code>js/</code> today &mdash; no <code>new URL</code>, no <code>URLSearchParams</code>, no regex
+ for <code>http</code>.</li>
+<li><code>test/templates.test.js</code> scans <code>index.html</code> and every file under <code>js/ui/</code> (not <code>js/</code> itself)
+ for inline styles other than <code>display: none</code>, colour literals, removed class names and unstyled classes; a separate test
+ fails on any CSS class that nothing uses. Available small-text classes: <code>note</code> (13&nbsp;px, text-3), <code>text-danger</code>;
+ spacing utilities <code>mt-1</code>, <code>mt-2</code>, <code>mt-3</code>, <code>mt-5</code> (there is no <code>mt-4</code>).</li>
+<li><code>test/legacy-removed.test.js:31-38</code> requires <code>js/ui/wishlist.js</code> to contain
+ <code>enteredPassword.length === 5</code> exactly once and not to contain <code>text.startsWith('VALID:')</code>, <code>.isLegacy</code>
+ or <code>enteredPassword.startsWith('0')</code>.</li>
+<li>Why this helps: the codec is deflate-raw then base64url. Measured on realistic bulleted lists, a 983-character wishlist gives
+ an 805-character fragment and a 1956-character one gives 1498. Prose compresses to about 60%; a pasted shop URL is mostly an
+ incompressible ID plus tracking noise, typically 150-300 characters that shrink to 30-45 once canonicalised.</li>
+</ul>
+
+<h2>2. Module <code>js/urls.js</code> (REQ-SSS-0003.1, 0003.3)</h2>
+<p>Pure functions, no DOM, no imports. Both exported.</p>
+
+<h3>2.1 API</h3>
+<pre><code>export function tidyUrl(url)   // string -&gt; string: the short form, or `url` unchanged
+export function tidyUrls(text) // string -&gt; { text: string, shortened: number }</code></pre>
+<ul>
+<li><code>tidyUrl</code> parses with <code>new URL(url)</code>. If parsing throws, or the protocol is not <code>http:</code>/<code>https:</code>,
+ it returns the input unchanged. It never throws.</li>
+<li>It returns a string <em>different</em> from the input only when a rule actually removed or replaced something; a URL already
+ in short form comes back identical (<code>tidyUrl(tidyUrl(u)) === tidyUrl(u)</code>).</li>
+<li><code>tidyUrls</code> finds every maximal run matching <code>/https?:\/\/[^\s&lt;&gt;"']+/g</code>, peels trailing sentence punctuation
+ off the run before cleaning and puts it back after (characters <code>.</code> <code>,</code> <code>;</code> <code>:</code> <code>!</code>
+ <code>?</code> <code>'</code> <code>"</code>, and a trailing <code>)</code> only when the run contains no <code>(</code>), passes the rest to
+ <code>tidyUrl</code>, and counts a URL as shortened when the result differs from the input. Everything outside the matched runs is
+ copied verbatim.</li>
+</ul>
+
+<h3>2.2 Rules</h3>
+<p>Host matching is case-insensitive on <code>url.hostname</code>. "Any TLD" means the hostname matches
+<code>/(^|\.)amazon\.[a-z.]{2,}$/</code> (likewise <code>ebay</code>); this excludes <code>media-amazon.com</code> and similar. The ID
+pattern is applied to <code>url.pathname</code>. A shop rule whose ID pattern does not match falls through to the generic rule.
+A shop rule that matches produces <code>origin + path</code> with <strong>no query string and no fragment</strong>.</p>
+<table>
+<tr><th>Host</th><th>Path pattern (first match)</th><th>Short form</th></tr>
+<tr><td>Amazon, any TLD</td><td><code>/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?![A-Za-z0-9])</code></td><td><code>&lt;origin&gt;/dp/&lt;ASIN&gt;</code></td></tr>
+<tr><td><code>etsy.com</code>, <code>www.etsy.com</code></td><td><code>/listing/(\d+)</code> (a locale segment such as <code>/uk</code> before it is allowed and dropped)</td><td><code>&lt;origin&gt;/listing/&lt;id&gt;</code></td></tr>
+<tr><td>eBay, any TLD</td><td><code>/itm/(?:[^/]+/)?(\d{9,15})</code></td><td><code>&lt;origin&gt;/itm/&lt;id&gt;</code></td></tr>
+<tr><td><code>walmart.com</code>, <code>www.walmart.com</code></td><td><code>/ip/(?:[^/]+/)?(\d+)</code></td><td><code>&lt;origin&gt;/ip/&lt;id&gt;</code></td></tr>
+<tr><td><code>target.com</code>, <code>www.target.com</code></td><td><code>/p/(?:[^/]+/)?-/A-(\d+)</code></td><td><code>&lt;origin&gt;/p/-/A-&lt;id&gt;</code></td></tr>
+<tr><td><code>bestbuy.com</code>, <code>www.bestbuy.com</code></td><td><code>/site/(?:[^/]+/)?(\d+)\.p</code></td><td><code>&lt;origin&gt;/site/&lt;sku&gt;.p</code></td></tr>
+<tr><td>Every other host, and a shop host whose pattern did not match</td><td>&mdash;</td><td>Same URL with these query parameters removed: any name starting <code>utm_</code>, and exactly <code>ref</code>, <code>ref_</code>, <code>tag</code>, <code>fbclid</code>, <code>gclid</code>, <code>msclkid</code>, <code>mc_cid</code>, <code>mc_eid</code>, <code>_ga</code>, <code>igshid</code>. All other parameters keep their order and values; an emptied query drops its <code>?</code>; the fragment is kept.</td></tr>
+</table>
+<p><strong>Not done, deliberately:</strong> no <code>www.</code> or trailing-slash normalisation on generic hosts; no scheme change; no
+percent-decoding; no expansion of short links; no rule for a host not in the table even when its URL looks like a product page.
+<code>ASIN</code> is matched upper-case only, as Amazon issues them.</p>
+
+<h2>3. The generate flow (REQ-SSS-0003.2)</h2>
+<p>In <code>generateHintLink()</code>, after the empty-text alert and before the 2000-character confirm:</p>
+<ol>
+<li><code>const tidy = tidyUrls(hintsText);</code></li>
+<li>If <code>tidy.shortened &gt; 0</code>: set <code>#hintsText.value = tidy.text</code> and dispatch <code>new Event('input')</code> on it so
+ the 1500-character warning (§1) re-evaluates against the cleaned length. (The template string in <code>showCreateHints</code> is not
+ touched.)</li>
+<li>Use <code>tidy.text</code> for the 2000-character confirm, for <code>encodeHints</code>, and for nothing else; the password derivation
+ and URL assembly are unchanged.</li>
+<li>In the link-ready template, immediately after the existing "Share it with the group…" note, add
+ <code>&lt;p class="note mt-3"&gt;Shortened N shop links.&lt;/p&gt;</code> only when <code>tidy.shortened &gt; 0</code>
+ ("Shortened 1 shop link." for one). Nothing is added when nothing was shortened.</li>
+</ol>
+<p>Import: <code>import { tidyUrls } from '../urls.js';</code> beside the existing imports. Back from the link-ready screen keeps
+hiding/showing the form as today, so it shows the cleaned text; no state is saved.</p>
+
+<h2>4. Copy (REQ-SSS-0007)</h2>
+<table>
+<tr><th>Where</th><th>String</th><th>Note</th></tr>
+<tr><td>Link-ready screen, <code>.note</code></td><td>Shortened N shop links. / Shortened 1 shop link.</td><td>States a fact about length; says nothing about privacy or protection.</td></tr>
+<tr><td><code>README.md</code>, after item 4 (line 11), as a continuation of that item</td><td>Shop links in a wishlist are trimmed to their short form so the wishlist link stays short.</td><td>Consistent with line 15 ("everything runs locally"): nothing is fetched.</td></tr>
+</table>
+
+<h2>5. Tests</h2>
+<p>Runner: <code>node --test</code> via <code>npm test</code>; no dependencies, no DOM. The suite is 78/78 at <code>main</code> f2e601c and must stay green.</p>
+<h3>5.1 <code>test/urls.test.js</code> (new)</h3>
+<ul>
+<li>One case per shop row in §2.2 using a realistic long URL (slug, <code>ref=</code>, <code>?th=1&amp;psc=1</code>, <code>utm_</code>) &rarr; the exact short form; include <code>amazon.co.uk</code> and an Etsy URL with a <code>/uk/</code> locale segment.</li>
+<li>Generic host: <code>https://shop.example.com/item?variant=3&amp;utm_source=x&amp;fbclid=y#reviews</code> &rarr; <code>https://shop.example.com/item?variant=3#reviews</code>.</li>
+<li>Unchanged: an unknown host with no tracking params; <code>https://a.co/d/abc123</code>; an Amazon URL with no ASIN in its path but a tracking param (loses only the param); <code>https://m.media-amazon.com/images/I/x.jpg</code>; a <code>mailto:</code> or <code>ftp://</code> URL; the string <code>https://</code> alone; a URL already in short form (identity).</li>
+<li><code>tidyUrls</code>: text with two shop URLs and prose &rarr; both replaced, prose byte-identical, <code>shortened === 2</code>; a URL followed by <code>.</code> and one wrapped in <code>(…)</code> keep their punctuation outside the URL; text with no URL &rarr; same text, <code>shortened === 0</code>; a Wikipedia-style URL ending in <code>)</code> with a <code>(</code> inside keeps the <code>)</code>.</li>
+</ul>
+<h3>5.2 Guard (new test in <code>test/templates.test.js</code> or a new file)</h3>
+<p>Reads <code>js/ui/wishlist.js</code> as text and asserts it imports <code>tidyUrls</code> from <code>'../urls.js'</code> and that the call
+<code>tidyUrls(</code> appears before <code>encodeHints(</code> inside <code>generateHintLink</code>. There are no DOM tests in this repo; this
+pins the wiring the way the other guard tests do.</p>
+<h3>5.3 Existing suites</h3>
+<p><code>test/templates.test.js</code> scans <code>js/ui/wishlist.js</code>: the new <code>&lt;p&gt;</code> uses only <code>note</code> and <code>mt-3</code>,
+no inline style, no colour. <code>test/legacy-removed.test.js</code> strings (§1) must remain exactly as they are. <code>test/golden.test.js</code>,
+<code>test/format.test.js</code> and <code>test/compress.test.js</code> are untouched: the codec does not change.</p>
+
+<h2>6. Manual check</h2>
+<p>The director runs it on the VM copy after merge: open an assignment link, create a wishlist containing one long Amazon URL
+followed by a full stop, one Etsy URL in parentheses and one unknown-host URL with <code>?size=M</code>; Generate. Expect: the textarea
+shows the two short forms with the punctuation intact and the unknown URL unchanged; the link-ready screen shows "Shortened 2 shop
+links."; Back shows the cleaned text; opening the wishlist link with the password shows the cleaned text.</p>
+
+<h2>7. Constraints on the implementation</h2>
+<ul>
+<li>No dependency, no build step, no fetch (REQ-SSS-0004, 0005). <code>js/urls.js</code> lives directly under <code>js/</code>, not <code>js/ui/</code>.</li>
+<li>No change to <code>js/format.js</code>, <code>js/compress.js</code>, <code>js/secret.js</code>, <code>js/main.js</code>, <code>css/styles.css</code> or <code>index.html</code>. No new CSS class, no inline style other than <code>display: none</code>.</li>
+<li>Only <code>generateHintLink</code> changes in <code>wishlist.js</code>; inline <code>onclick</code> handlers stay as they are.</li>
+<li>Commit per task on branch <code>wishlist-url-cleanup</code>; do not push; do not merge to <code>main</code> &mdash; the director does that on the user's ruling.</li>
+</ul>
+
+<h2>8. Scope</h2>
+<p><strong>In:</strong> §§2-5 and the README sentence.</p>
+<p><strong>Out:</strong> the base2048/base32768 alphabet spike (idea 1, separate work); dictionary compression; a shorter domain or
+plaintext owner name; cleaning on paste; expanding short links; any change to the 1500/2000-character thresholds or their wording.</p>
+
+</body></html>
