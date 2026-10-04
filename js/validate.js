@@ -33,3 +33,17 @@ export function getInvalidNameReason(name) {
     if (!/[\p{L}\p{N}]/u.test(name)) return "Name must contain at least one letter or number";
     return null;
 }
+
+// Validate one exclusion row. Returns a message for a conflict, or null.
+// An incomplete row (either side unset) is not a conflict — the caller skips
+// it — so this only ever reports a self-pair or a name that is no longer a
+// participant. The dropdowns filter each side against the other, so a
+// self-pair should be unreachable from the UI; this is the backstop.
+export function getExclusionPairError(person1, person2, people) {
+    if (!person1 || !person2) return null;
+    if (person1 === person2) return `${person1} can't be excluded from themselves`;
+    for (const name of [person1, person2]) {
+        if (!people.includes(name)) return `${name} isn't in the participant list`;
+    }
+    return null;
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidName, getInvalidNameReason } from '../js/validate.js';
+import { isValidName, getInvalidNameReason, getExclusionPairError } from '../js/validate.js';
 
 test('accepts ordinary and international names', () => {
   for (const n of ['Andrew', 'José', "Mary-Anne O'Brien", 'Bob Jr.']) {
@@ -43,4 +43,25 @@ test('rejects the two characters that produce unusable links', () => {
   }
   assert.equal(getInvalidNameReason('Bob|Ann'), "Name cannot contain '|'");
   assert.equal(getInvalidNameReason('{Bob}'), "Name cannot contain '{'");
+});
+
+const people = ['Alice', 'Bob', 'Carol'];
+
+test('getExclusionPairError rejects a person excluded from themselves', () => {
+  assert.equal(getExclusionPairError('Alice', 'Alice', people), "Alice can't be excluded from themselves");
+});
+
+test('getExclusionPairError rejects names not in the participant list', () => {
+  assert.match(getExclusionPairError('Alice', 'Dave', people), /Dave/);
+  assert.match(getExclusionPairError('Dave', 'Alice', people), /Dave/);
+});
+
+test('getExclusionPairError accepts a valid pair', () => {
+  assert.equal(getExclusionPairError('Alice', 'Bob', people), null);
+});
+
+test('getExclusionPairError ignores an incomplete pair', () => {
+  assert.equal(getExclusionPairError('', 'Bob', people), null);
+  assert.equal(getExclusionPairError('Alice', '', people), null);
+  assert.equal(getExclusionPairError('', '', people), null);
 });

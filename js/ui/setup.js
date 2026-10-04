@@ -1,7 +1,7 @@
 import { escapeHtml, copyToClipboard } from './dom.js';
 import { encodeAssignment } from '../format.js';
 import { buildAssignment } from '../assign.js';
-import { isValidName, getInvalidNameReason } from '../validate.js';
+import { isValidName, getInvalidNameReason, getExclusionPairError } from '../validate.js';
 import { makeSalt } from '../secret.js';
 
 // The per-session salt shared by every link in this group. Public by design —
@@ -38,45 +38,66 @@ export function addExclusion() {
     updateExclusionDropdowns();
 }
 
-export function updateExclusionDropdowns() {
-    const inputs = document.querySelectorAll('.person-name');
+function currentPeople() {
     const people = [];
-
-    inputs.forEach(input => {
+    document.querySelectorAll('.person-name').forEach(input => {
         const name = input.value.trim();
         if (name) people.push(name);
     });
+    return people;
+}
 
-    const selects = document.querySelectorAll('.person1-select, .person2-select');
-    selects.forEach(select => {
-        const currentValue = select.value;
-        select.innerHTML = '<option value="">Select person...</option>';
-        people.forEach(person => {
-            const option = document.createElement('option');
-            option.value = person;
-            option.textContent = person;
-            if (person === currentValue) option.selected = true;
-            select.appendChild(option);
-        });
+function fillSelect(select, people, omit) {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select person...</option>';
+    people.forEach(person => {
+        if (person === omit) return;
+        const option = document.createElement('option');
+        option.value = person;
+        option.textContent = person;
+        if (person === currentValue) option.selected = true;
+        select.appendChild(option);
     });
 }
 
-export function getExclusions() {
+// Each side of a row offers every participant except the one chosen on the
+// other side, so the same person can't be picked on both sides of a pair.
+export function updateExclusionDropdowns() {
+    const people = currentPeople();
+
+    document.querySelectorAll('.exclusion-row').forEach(row => {
+        const select1 = row.querySelector('.person1-select');
+        const select2 = row.querySelector('.person2-select');
+        const value1 = select1.value;
+        const value2 = select2.value;
+        fillSelect(select1, people, value2);
+        fillSelect(select2, people, value1);
+    });
+}
+
+// Returns the symmetric exclusion map consumed by buildAssignment, or null
+// after alerting if any complete row is invalid. Incomplete rows are skipped.
+export function getExclusions(people) {
     const exclusions = {};
     const rows = document.querySelectorAll('.exclusion-row');
 
-    rows.forEach(row => {
+    for (const row of rows) {
         const person1 = row.querySelector('.person1-select').value;
         const person2 = row.querySelector('.person2-select').value;
 
-        if (person1 && person2 && person1 !== person2) {
-            if (!exclusions[person1]) exclusions[person1] = [];
-            if (!exclusions[person2]) exclusions[person2] = [];
-
-            if (!exclusions[person1].includes(person2)) exclusions[person1].push(person2);
-            if (!exclusions[person2].includes(person1)) exclusions[person2].push(person1);
+        const error = getExclusionPairError(person1, person2, people);
+        if (error) {
+            alert(`Invalid exclusion: ${error}.`);
+            return null;
         }
-    });
+        if (!person1 || !person2) continue;
+
+        if (!exclusions[person1]) exclusions[person1] = [];
+        if (!exclusions[person2]) exclusions[person2] = [];
+
+        if (!exclusions[person1].includes(person2)) exclusions[person1].push(person2);
+        if (!exclusions[person2].includes(person1)) exclusions[person2].push(person1);
+    }
 
     return exclusions;
 }
@@ -84,13 +105,7 @@ export function getExclusions() {
 export function generateSecretSanta() {
     updateExclusionDropdowns();
 
-    const inputs = document.querySelectorAll('.person-name');
-    const people = [];
-
-    inputs.forEach(input => {
-        const name = input.value.trim();
-        if (name) people.push(name);
-    });
+    const people = currentPeople();
 
     if (people.length < 3) {
         alert('You need at least 3 people for Secret Santa!');
@@ -123,7 +138,8 @@ export function generateSecretSanta() {
         }
     }
 
-    const exclusions = getExclusions();
+    const exclusions = getExclusions(people);
+    if (!exclusions) return;
 
     for (let person of people) {
         const excluded = exclusions[person] || [];

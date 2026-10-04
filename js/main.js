@@ -59,5 +59,12 @@ if (typeof document !== 'undefined') {
         }
     });
 
+    // Picking one side of an exclusion removes that person from the other side.
+    document.addEventListener('change', function (e) {
+        if (e.target.matches('.person1-select, .person2-select')) {
+            updateExclusionDropdowns();
+        }
+    });
+
     checkForReveal();
 }
