@@ -1370,7 +1370,7 @@ git commit -m "feat: results replace the setup form; Edit participants brings it
 
 ### Task 5: Wishlist screens, and the final form of the template guard
 
-**Held for B1** (the lead's question to the director on what "Back" does on the wishlist create and link-ready screens). Dispatch only after the ruling; if it changes the `Back` handler in `showCreateHints`, the lead amends this task's code before dispatch.
+**B1 ruling (director, 2026-10-04, user decision; spec amended on main at 6e82dac):** on the wishlist create and link-ready screens, "Back" returns to the giver's assignment: it hides `#hintsSection` and shows `#revealSection`, whose content is still in the DOM because `showCreateHints` only hides it. It is one inline onclick and no new function. The view screen's "Back" (§5.6) stays `location.href=location.pathname`. The code below already carries this.
 
 **Files:**
 - Replace (whole file): `js/ui/wishlist.js`
@@ -1552,7 +1552,7 @@ export function showCreateHints(recipientName, salt) {
             <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
         </div>
         <div id="hintLinkDisplay" class="mt-5" style="display: none;"></div>
-        <p class="nav"><button class="link" onclick="location.href=location.pathname">Back</button></p>
+        <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
     `;
 
     document.getElementById('hintsText').addEventListener('input', function() {
