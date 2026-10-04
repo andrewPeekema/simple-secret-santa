@@ -81,9 +81,6 @@ export async function generateHintLink() {
     display.innerHTML = `
         <div class="hint-link-display">
             <h3>Link Ready</h3>
-            <p style="font-size: 13px; margin: 10px 0;">
-                Share this with your group — it's wrapped so only your Secret Santa should peek.
-            </p>
             <input type="text" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input" style="margin-top: 6px;">
             <button class="copy-btn" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy Link</button>
             <div class="info-box" style="margin-top: 14px;">
