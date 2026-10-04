@@ -75,7 +75,8 @@ screen, as the greeting in §5.3).</p>
 <tr><td>"How it works"</td><td>Summary at note size; two text colours inside (text-1 lead-ins, text-2 for everything else).</td></tr>
 <tr><td>Busyness</td><td>One container level per screen; hairline rules between sections; one primary button per screen; navigation as text links.</td></tr>
 <tr><td>Flows</td><td>Results replace the setup form; the wishlist link replaces the wishlist form. Both offer a text link back.</td></tr>
-<tr><td>Back on wishlist screens</td><td>Returns to the assignment (ruling B1, lead's recommendation, user 2026-10-04); the view-wishlist Back still goes to the setup page.</td></tr>
+<tr><td>Back on wishlist screens</td><td>Create screen: returns to the assignment (ruling B1, lead's recommendation, user 2026-10-04). Link-ready screen: returns to the create form with the typed text intact (user 2026-10-04, superseding B1 for that screen). View screens: the link is labelled "Start a new exchange" (user 2026-10-04); it still reloads to the setup page.</td></tr>
+<tr><td>Check marks on status lines</td><td>None: "Link ready", "Wishlist decoded" and "N links ready to share" carry no "✓" (user 2026-10-04). The copy button's "✓ Copied" is unchanged.</td></tr>
 <tr><td>Reveal note</td><td>"Keep this to yourself." removed (user, 2026-10-04).</td></tr>
 <tr><td>Remove buttons</td><td>Only on participant rows added beyond the first three (unchanged behaviour, now also the rule).</td></tr>
 </table>
@@ -172,7 +173,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <table>
 <tr><th>Class</th><th>Look</th><th>Rule</th></tr>
 <tr><td><code>.card</code></td><td><code>--bg-1</code>, 1px <code>--line</code>, radius <code>--radius-card</code>, padding <code>--s-5</code> (<code>--s-4</code> below 480&nbsp;px)</td><td>Exactly one visible per screen. <code>#mainContainer</code>, <code>#revealSection</code>, <code>#hintsSection</code> and <code>#viewHintsSection</code> all carry <code>class="card"</code> statically in <code>index.html</code>; the last three start hidden as today. <code>body</code> keeps <code>max-width: 580px</code>, so the card is at most 580&nbsp;px wide on desktop and fills the viewport minus body padding on a phone.</td></tr>
-<tr><td><code>.tint</code> (+ <code>.tint--danger</code>)</td><td><code>--accent-soft</code> with <code>--accent-border</code> (or the danger pair), radius <code>--radius</code>, padding <code>--s-3</code> <code>--s-4</code></td><td>Status only: "✓ N links ready to share", "✓ Link ready", "✓ Wishlist decoded", the save-your-links warning, invalid-password and invalid-link errors.</td></tr>
+<tr><td><code>.tint</code> (+ <code>.tint--danger</code>)</td><td><code>--accent-soft</code> with <code>--accent-border</code> (or the danger pair), radius <code>--radius</code>, padding <code>--s-3</code> <code>--s-4</code></td><td>Status only: "N links ready to share", "Link ready", "Wishlist decoded", the save-your-links warning, invalid-password and invalid-link errors.</td></tr>
 <tr><td><code>hr.sep</code></td><td>1px <code>--line</code>, margins <code>--s-5</code></td><td>Separates sections inside the card. There are no nested boxes.</td></tr>
 </table>
 <p>Gone: <code>.exclusions-section</code>, <code>.link-item</code>, <code>.reveal-box</code>, <code>.hints-box</code>, <code>.hint-link-display</code>, <code>.info-box</code>, <code>.success</code>, <code>.success-banner</code>, <code>.error</code>, <code>.warning</code>, <code>#results</code>'s own box, and the inline password box. Each becomes plain content in the card, a <code>.tint</code>, or nothing.</p>
@@ -204,13 +205,13 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <tr><td>Wishlist create</td><td>Only your Secret Santa gets the password.</td><td>removed</td></tr>
 <tr><td>Wishlist create</td><td>placeholder "…favorite things..."</td><td>"…favorite things…" (one ellipsis character)</td></tr>
 <tr><td>Wishlist create</td><td>Generate Link</td><td>Generate link</td></tr>
-<tr><td>Link ready</td><td>heading "Link Ready"</td><td>status "✓ Link ready"</td></tr>
+<tr><td>Link ready</td><td>heading "Link Ready"</td><td>status "Link ready"</td></tr>
 <tr><td>Link ready</td><td>"How it works" block: Anyone can open this link, but only your assigned Santa has the password to decode it.</td><td>note: Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</td></tr>
 <tr><td>Wishlist view</td><td>Enter the password to decode this wishlist. / Only the assigned Secret Santa is shown this password</td><td>Enter the password from your assignment page. (the second line removed)</td></tr>
-<tr><td>Wishlist view</td><td>heading "Wishlist Decoded"</td><td>status "✓ Wishlist decoded"</td></tr>
+<tr><td>Wishlist view</td><td>heading "Wishlist Decoded"</td><td>status "Wishlist decoded"</td></tr>
 <tr><td>Error screen</td><td>Invalid Link</td><td>Invalid link</td></tr>
 </table>
-<p>Strings about wishlists that this spec adds or changes: "How it works" step 4; the reveal screen's "Wishlist password" label, its note "You'll need it to open <em>Receiver</em>'s wishlist, if they share one." and "Share hints with your own Secret Santa."; the link-ready note; the view-screen prompt "Enter the password from your assignment page."; the status lines "✓ Link ready" and "✓ Wishlist decoded". Each describes a password that the Santa has; none promises secrecy from a determined reader. Kept unchanged: step 3, the gift-wrapped notes, the invalid-password error, every alert and the long-URL warning.</p>
+<p>Strings about wishlists that this spec adds or changes: "How it works" step 4; the reveal screen's "Wishlist password" label, its note "You'll need it to open <em>Receiver</em>'s wishlist, if they share one." and "Share hints with your own Secret Santa."; the link-ready note; the view-screen prompt "Enter the password from your assignment page."; the status lines "Link ready" and "Wishlist decoded". Each describes a password that the Santa has; none promises secrecy from a determined reader. Kept unchanged: step 3, the gift-wrapped notes, the invalid-password error, every alert and the long-URL warning.</p>
 
 <h2>5. Screens</h2>
 <p>Each screen is one <code>.card</code>. Lists give document order. "Rule" means <code>hr.sep</code>. The mockup shows 5.1&ndash;5.5; 5.6 and 5.7 are not mocked and follow the same rules.</p>
@@ -227,7 +228,7 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <h3>5.2 Results (<code>#setupSection</code> hidden, <code>#results</code> visible)</h3>
 <ol>
 <li>Stars; heading "Simple Secret Santa"; tagline (shared header, see Structure below).</li>
-<li><code>#successBanner</code> as a <code>.tint</code> in <code>--accent</code> weight 500: "✓ N links ready to share". Note "Send each link privately to the corresponding person." "Copy all links" (secondary, block, <code>#copyAllBtn</code>).</li>
+<li><code>#successBanner</code> as a <code>.tint</code> in <code>--accent</code> weight 500: "N links ready to share". Note "Send each link privately to the corresponding person." "Copy all links" (secondary, block, <code>#copyAllBtn</code>).</li>
 <li>Rule. For each person, in <code>#linksList</code>: section title = the name; <code>.in.in--url</code> read-only URL; quiet "Copy link". Successive entries separated by <code>--s-4</code>, no boxes.</li>
 <li><code>.tint.tint--danger</code> at note size in <code>--danger</code>: "Save these links. Once you leave this page, these specific pairings cannot be recreated."</li>
 <li>Centred text link "Edit participants".</li>
@@ -256,9 +257,9 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <h3>5.5 Wishlist link ready (<code>#hintsSection</code>, after <code>generateHintLink()</code>)</h3>
 <ol>
 <li>Stars; heading "Your wishlist" (unchanged from 5.4).</li>
-<li><code>.tint</code> "✓ Link ready".</li>
+<li><code>.tint</code> "Link ready".</li>
 <li><code>input#hint-link-input.in.in--url</code> read-only; "Copy link" (secondary, block); note "Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it."</li>
-<li>Text link "Back", as in 5.4: back to the assignment.</li>
+<li>Text link "Back": hides <code>#hintLinkDisplay</code> and shows <code>#hintsForm</code> again, so the typed wishlist is still there to edit and regenerate. One inline <code>onclick</code>; no new function. Each screen's Back lives inside its own block (<code>#hintsForm</code>, <code>#hintLinkDisplay</code>).</li>
 </ol>
 <p><strong>Behaviour.</strong> The form block of 5.4 is wrapped in <code>div#hintsForm</code>, which <code>generateHintLink()</code> hides when it shows <code>#hintLinkDisplay</code>. The 1500-character warning and 2000-character confirm are unchanged.</p>
 
@@ -266,8 +267,8 @@ Selection colour (<code>::selection</code>) and scrollbar rules may stay, expres
 <ol>
 <li>Stars; heading "Wishlist".</li>
 <li>Body text-2 "Enter the password from your assignment page."; <code>input#passwordInput.in.in--password</code>, <code>maxlength="6"</code>, no <code>text-transform</code>; "Decode" (primary, block).</li>
-<li><code>#decodedHints</code>: on success, a <code>.tint</code> "✓ Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
-<li>Text link "Back" (<code>location.href = location.pathname</code>, as today &mdash; someone who opened a wishlist link has no assignment screen behind it).</li>
+<li><code>#decodedHints</code>: on success, a <code>.tint</code> "Wishlist decoded" followed by the wishlist text in a left-aligned, <code>pre-wrap</code> body-size block in text-1 (a plain <code>div.wishlist-text</code>, no box); on failure, a <code>.tint.tint--danger</code> note "Invalid password. Only the assigned Secret Santa has the correct password."</li>
+<li>Text link "Start a new exchange" (<code>location.href = location.pathname</code>, as today &mdash; someone who opened a wishlist link has no assignment screen behind it, so "Back" would be the wrong label). It stays visible under the decoded list.</li>
 </ol>
 <p>The prompt, input and Decode button are wrapped in <code>div#viewHintsForm</code>. On success <code>tryDecodeHintsWithPassword()</code> hides it, so the decoded list replaces the form as in 5.5. On failure it stays, so the password can be retried.</p>
 
@@ -310,7 +311,7 @@ viewport, recorded in <code>docs/superpowers/verification/2026-10-04-visual-syst
 <li>Setup: no horizontal scroll at 412&nbsp;px; three names, add a fourth, remove it; add an exclusion and see the ↔ hidden and the selects stacked; a Remove button and the "Edit participants" link are as tall as an input (42&nbsp;px) in the inspector.</li>
 <li>Generate: the form disappears, results appear at the top; Copy link shows "✓ Copied" for two seconds and returns to normal with no colour left behind; Edit participants brings the form back with the names intact.</li>
 <li>Reveal: open a link; one heading (the recipient, gold); the password line; Create your wishlist is the only filled button.</li>
-<li>Wishlist: create one; the form is replaced by "✓ Link ready"; open the link in another tab; a wrong password shows the danger tint and keeps the form; the right one replaces the form with "✓ Wishlist decoded".</li>
+<li>Wishlist: create one; the form is replaced by "Link ready"; Back brings the form back with the text intact; open the link in another tab; a wrong password shows the danger tint and keeps the form; the right one replaces the form with "Wishlist decoded".</li>
 <li>Invalid link: edit the hash; "Invalid link" with a danger tint.</li>
 <li>Every string in §4 reads as written; no ALL CAPS anywhere; no italics.</li>
 </ol>
