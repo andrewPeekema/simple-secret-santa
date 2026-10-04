@@ -1,7 +1,7 @@
 import { escapeHtml, copyToClipboard } from './dom.js';
 import { encodeAssignment } from '../format.js';
 import { buildAssignment } from '../assign.js';
-import { isValidName, getInvalidNameReason, getExclusionPairError } from '../validate.js';
+import { isValidName, getInvalidNameReason, getExclusionPairError, partnersOf } from '../validate.js';
 import { makeSalt } from '../secret.js';
 
 // The per-session salt shared by every link in this group. Public by design —
@@ -51,7 +51,7 @@ function fillSelect(select, people, omit) {
     const currentValue = select.value;
     select.innerHTML = '<option value="">Select person...</option>';
     people.forEach(person => {
-        if (person === omit) return;
+        if (omit.has(person)) return;
         const option = document.createElement('option');
         option.value = person;
         option.textContent = person;
@@ -61,17 +61,24 @@ function fillSelect(select, people, omit) {
 }
 
 // Each side of a row offers every participant except the one chosen on the
-// other side, so the same person can't be picked on both sides of a pair.
+// other side (no self-pairs) and anyone already paired with that person in
+// an earlier row (no duplicate pairs). Earlier rows take precedence: editing
+// a row to duplicate a later one clears the later row's conflicting side.
 export function updateExclusionDropdowns() {
     const people = currentPeople();
+    const rows = [...document.querySelectorAll('.exclusion-row')];
+    const pairs = rows.map(row => [
+        row.querySelector('.person1-select').value,
+        row.querySelector('.person2-select').value,
+    ]);
 
-    document.querySelectorAll('.exclusion-row').forEach(row => {
-        const select1 = row.querySelector('.person1-select');
-        const select2 = row.querySelector('.person2-select');
-        const value1 = select1.value;
-        const value2 = select2.value;
-        fillSelect(select1, people, value2);
-        fillSelect(select2, people, value1);
+    rows.forEach((row, i) => {
+        const [value1, value2] = pairs[i];
+        const earlier = pairs.slice(0, i);
+        fillSelect(row.querySelector('.person1-select'), people,
+            new Set([value2, ...partnersOf(value2, earlier)]));
+        fillSelect(row.querySelector('.person2-select'), people,
+            new Set([value1, ...partnersOf(value1, earlier)]));
     });
 }
 

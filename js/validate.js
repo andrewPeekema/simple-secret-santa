@@ -47,3 +47,17 @@ export function getExclusionPairError(person1, person2, people) {
     }
     return null;
 }
+
+// Names already paired with `name` in the given [a, b] exclusion pairs, in
+// either direction. Incomplete pairs and an unset name contribute nothing.
+// The dropdowns use this to stop a pair being added twice.
+export function partnersOf(name, pairs) {
+    if (!name) return [];
+    const partners = [];
+    for (const [a, b] of pairs) {
+        if (!a || !b) continue;
+        if (a === name) partners.push(b);
+        else if (b === name) partners.push(a);
+    }
+    return partners;
+}

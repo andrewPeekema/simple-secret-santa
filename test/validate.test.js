@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidName, getInvalidNameReason, getExclusionPairError } from '../js/validate.js';
+import { isValidName, getInvalidNameReason, getExclusionPairError, partnersOf } from '../js/validate.js';
 
 test('accepts ordinary and international names', () => {
   for (const n of ['Andrew', 'José', "Mary-Anne O'Brien", 'Bob Jr.']) {
@@ -64,4 +64,17 @@ test('getExclusionPairError ignores an incomplete pair', () => {
   assert.equal(getExclusionPairError('', 'Bob', people), null);
   assert.equal(getExclusionPairError('Alice', '', people), null);
   assert.equal(getExclusionPairError('', '', people), null);
+});
+
+test('partnersOf lists the names already paired with a person, in either direction', () => {
+  const pairs = [['Alice', 'Bob'], ['Carol', 'Alice'], ['Bob', 'Carol']];
+  assert.deepEqual(partnersOf('Alice', pairs), ['Bob', 'Carol']);
+  assert.deepEqual(partnersOf('Bob', pairs), ['Alice', 'Carol']);
+  assert.deepEqual(partnersOf('Dave', pairs), []);
+});
+
+test('partnersOf ignores incomplete pairs and an unset name', () => {
+  const pairs = [['Alice', ''], ['', 'Bob'], ['', '']];
+  assert.deepEqual(partnersOf('Alice', pairs), []);
+  assert.deepEqual(partnersOf('', pairs), []);
 });
