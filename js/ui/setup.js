@@ -192,7 +192,7 @@ export function displayResults(assignments) {
 
     // Set success banner
     const successBanner = document.getElementById('successBanner');
-    successBanner.textContent = `✓ ${people.length} links ready to share`;
+    successBanner.textContent = `${people.length} links ready to share`;
 
     people.forEach(person => {
         const url = window.location.origin + window.location.pathname +

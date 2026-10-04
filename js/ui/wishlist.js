@@ -30,9 +30,9 @@ export function showCreateHints(recipientName, salt) {
             <p class="note mt-2">Wishlists are gift-wrapped, not locked up—keep anything private off them. 🎁</p>
             <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
             <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
+            <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
         </div>
         <div id="hintLinkDisplay" class="mt-5" style="display: none;"></div>
-        <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
     `;
 
     document.getElementById('hintsText').addEventListener('input', function() {
@@ -68,17 +68,19 @@ export async function generateHintLink() {
     const encoded = await encodeHints(hintsText, hintPassword);
     const hintUrl = window.location.origin + window.location.pathname + '#h-' + encoded;
 
-    // The link replaces the form (spec §5.5).
+    // The link replaces the form (spec §5.5). The form is only hidden, so
+    // Back on the link screen restores it with the text still in place.
     document.getElementById('hintsForm').style.display = 'none';
     const display = document.getElementById('hintLinkDisplay');
     display.style.display = 'block';
     display.innerHTML = `
-        <div class="tint">✓ Link ready</div>
+        <div class="tint">Link ready</div>
         <div class="left mt-3">
             <input type="text" class="in in--url" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input">
             <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy link</button>
             <p class="note mt-3">Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</p>
         </div>
+        <p class="nav"><button class="link" onclick="document.getElementById('hintLinkDisplay').style.display='none'; document.getElementById('hintsForm').style.display='';">Back</button></p>
     `;
 }
 
@@ -101,7 +103,7 @@ export function showViewHints(encryptedBytes) {
             <button class="btn btn--primary btn--block mt-3" onclick="tryDecodeHintsWithPassword()">Decode</button>
         </div>
         <div id="decodedHints"></div>
-        <p class="nav"><button class="link" onclick="location.href=location.pathname">Back</button></p>
+        <p class="nav"><button class="link" onclick="location.href=location.pathname">Start a new exchange</button></p>
     `;
 }
 
@@ -165,7 +167,7 @@ export async function tryDecodeHintsWithPassword() {
             // form stays so the password can be retried.
             document.getElementById('viewHintsForm').style.display = 'none';
             decodedDiv.innerHTML = `
-                <div class="tint mt-5">✓ Wishlist decoded</div>
+                <div class="tint mt-5">Wishlist decoded</div>
                 <div class="wishlist-text mt-3">${escapeHtml(hints.trim())}</div>
             `;
         } else {
