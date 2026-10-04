@@ -540,6 +540,251 @@ git commit -m "feat: generating a wishlist link trims its shop URLs and says how
 
 ---
 
+### Task 3: Variant parameters kept; ref/ref_/tag stripped only on shop hosts (ruling B1)
+
+Added after ruling B1 (user 2026-10-04; spec amended on main at 888f714, §0 row "B1", §2.2 intro, table "Kept params" column, generic row, §5.1). It amends Task 1's module; the final-review fix at 80f23f1 (text glued onto a URL is never discarded) stays in force.
+
+**Files:**
+- Modify: `js/urls.js`
+- Modify: `test/urls.test.js`
+
+**Interfaces:**
+- Consumes: `js/urls.js` as of 80f23f1 (`tidyUrl`, `tidyUrls`, `foreign`, `discardableTail`).
+- Produces: unchanged exports `tidyUrl(url) -> string`, `tidyUrls(text) -> { text, shortened }`. `js/ui/wishlist.js` is not touched.
+
+Amended spec wording this task implements:
+- A shop rule that matches produces url.origin + the short-form path, with no fragment and no query string — except the variant-selecting parameters named in the "Kept params" column, copied in their original order and spelling. Kept params: Amazon none; Etsy `variation0`, `variation1`; eBay `var`; Walmart none; Target `preselect`; Best Buy none.
+- Generic rule: on every host remove any name starting `utm_`, and exactly `fbclid, gclid, msclkid, mc_cid, mc_eid, _ga, igshid`; on the six shop hosts only (the fall-through case) also `ref`, `ref_` and `tag`. On any other host `ref`, `ref_` and `tag` are kept.
+
+- [ ] **Step 1: Update the tests** — apply this diff to `test/urls.test.js` (the existing Target case now keeps `?preselect=`; the "every listed parameter" case loses `ref`, `ref_`, `tag`; five new tests):
+
+```diff
+@@ -31,7 +31,7 @@
+     'https://www.walmart.com/ip/345678901'],
+   ['Target',
+     'https://www.target.com/p/stanley-40oz-quencher-h2-0-tumbler/-/A-87654321?preselect=12345678#lnk=sametab',
+-    'https://www.target.com/p/-/A-87654321'],
++    'https://www.target.com/p/-/A-87654321?preselect=12345678'],
+   ['Best Buy',
+     'https://www.bestbuy.com/site/sony-wh-1000xm5-wireless-headphones-black/6505727.p?skuId=6505727&utm_campaign=gift',
+     'https://www.bestbuy.com/site/6505727.p'],
+@@ -50,12 +50,49 @@
+ });
+ 
+ test('generic host: every listed parameter name is removed', () => {
+-  const names = ['utm_anything', 'ref', 'ref_', 'tag', 'fbclid', 'gclid', 'msclkid',
+-    'mc_cid', 'mc_eid', '_ga', 'igshid'];
++  const names = ['utm_anything', 'fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid'];
+   const query = names.map(n => `${n}=1`).join('&');
+   assert.equal(tidyUrl(`https://blog.example.org/post?${query}`), 'https://blog.example.org/post');
+ });
+ 
++test('generic host: ref, ref_ and tag are kept off the shop hosts (ruling B1)', () => {
++  for (const url of [
++    'https://blog.example.com/posts?tag=wool',
++    'https://github.com/o/r/blob/main/x?ref=v2',
++    'https://blog.example.org/post?ref_=1&tag=2',
++  ]) assert.equal(tidyUrl(url), url);
++});
++
++test('shop host without an ID: ref, ref_ and tag go too (ruling B1)', () => {
++  assert.equal(tidyUrl('https://www.amazon.com/s?tag=x-20&keywords=socks'),
++    'https://www.amazon.com/s?keywords=socks');
++  assert.equal(tidyUrl('https://www.etsy.com/shop/Knits?ref_=a&ref=b&section_id=7'),
++    'https://www.etsy.com/shop/Knits?section_id=7');
++});
++
++test('shop rule keeps variant parameters in order and spelling (ruling B1)', () => {
++  assert.equal(tidyUrl('https://www.target.com/p/tumbler/-/A-12345678?preselect=87654321&utm_source=x'),
++    'https://www.target.com/p/-/A-12345678?preselect=87654321');
++  assert.equal(tidyUrl('https://www.ebay.com/itm/Camera/123456789012?var=987654321098&hash=abc'),
++    'https://www.ebay.com/itm/123456789012?var=987654321098');
++  assert.equal(tidyUrl('https://www.etsy.com/listing/123/scarf?variation0=1&ref=x&variation1=2'),
++    'https://www.etsy.com/listing/123?variation0=1&variation1=2');
++  assert.equal(tidyUrl('https://www.etsy.com/listing/123/scarf?variation1=%32&variation0=1#r'),
++    'https://www.etsy.com/listing/123?variation1=%32&variation0=1');
++});
++
++test('shop rule: kept parameters belong to their own shop only', () => {
++  assert.equal(tidyUrl('https://www.amazon.com/x/dp/B0ABCDEFGH?var=1&preselect=2&variation0=3'),
++    'https://www.amazon.com/dp/B0ABCDEFGH');
++});
++
++test('shop rule with a kept parameter is idempotent', () => {
++  for (const url of [
++    'https://www.target.com/p/-/A-12345678?preselect=87654321',
++    'https://www.etsy.com/listing/123?variation0=1&variation1=2',
++  ]) assert.equal(tidyUrl(url), url);
++});
++
+ test('generic host: a percent-encoded tracking name is recognised', () => {
+   assert.equal(tidyUrl('https://x.example/a?%75tm_source=1&keep=2'), 'https://x.example/a?keep=2');
+ });
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `node --test test/urls.test.js`
+Expected: FAIL — `shop rule: Target`, the generic `ref, ref_ and tag are kept` test, `shop host without an ID` (the Etsy line), the `keeps variant parameters` test and the idempotence test fail; the rest pass.
+
+- [ ] **Step 3: Implement** — replace `js/urls.js` so that it reads exactly:
+
+```js
+// Shop-URL cleanup for wishlists (REQ-SSS-0003.1, .3; spec
+// docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html §2).
+// Pure string work: no DOM, no imports, nothing fetched (REQ-SSS-0004).
+
+// Query parameters removed from any URL: these exact names, plus any name
+// starting utm_. On the shop hosts (when no shop rule applied) SHOP_TRACKING
+// goes too; elsewhere those names are as likely content as tracking (ruling B1).
+const TRACKING = new Set(['fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid']);
+const SHOP_TRACKING = new Set(['ref', 'ref_', 'tag']);
+
+// "Any TLD": at most one label before the brand, one or two short labels
+// after it — www.amazon.co.uk matches, media-amazon.com does not.
+const anyTld = brand =>
+  new RegExp(`^(?:[a-z0-9-]+\\.)?${brand}\\.[a-z]{2,3}(?:\\.[a-z]{2})?$`);
+const AMAZON = anyTld('amazon');
+const EBAY = anyTld('ebay');
+const bare = domain => host => host === domain || host === 'www.' + domain;
+
+// First matching row wins. `id` is applied to url.pathname; its first group
+// goes into `path`. `keep` names the variant-selecting query parameters the
+// short form carries over (ruling B1).
+const SHOPS = [
+  { host: h => AMAZON.test(h),
+    id: /\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?![A-Za-z0-9])/,
+    path: id => `/dp/${id}`, keep: [] },
+  { host: bare('etsy.com'), id: /\/listing\/(\d+)/, path: id => `/listing/${id}`,
+    keep: ['variation0', 'variation1'] },
+  { host: h => EBAY.test(h), id: /\/itm\/(?:[^/]+\/)?(\d{9,15})/, path: id => `/itm/${id}`,
+    keep: ['var'] },
+  { host: bare('walmart.com'), id: /\/ip\/(?:[^/]+\/)?(\d+)/, path: id => `/ip/${id}`, keep: [] },
+  { host: bare('target.com'), id: /\/p\/(?:[^/]+\/)?-\/A-(\d+)/, path: id => `/p/-/A-${id}`,
+    keep: ['preselect'] },
+  { host: bare('bestbuy.com'), id: /\/site\/(?:[^/]+\/)?(\d+)\.p/, path: id => `/site/${id}.p`,
+    keep: [] },
+];
+
+// Characters a URL can hold as written: RFC 3986's unreserved and reserved
+// sets, plus %. Anything else (CJK text, full-width punctuation), or a second
+// scheme, means the matched run swallowed text that is not part of this URL.
+// That text must survive (REQ-SSS-0003.3), so no rule may discard it.
+const URL_CHARS = /^[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]*$/;
+const foreign = s => !URL_CHARS.test(s) || /https?:\/\//i.test(s);
+
+// True when the text after the shop ID in `url`, as written, may be dropped:
+// the ID must be found in the written path, and what follows it must be
+// empty or the rest of a URL — starting /, ? or # with nothing foreign in it.
+function discardableTail(url, idPattern) {
+  const pathEnd = url.search(/[?#]/);
+  const m = idPattern.exec(pathEnd === -1 ? url : url.slice(0, pathEnd));
+  if (!m) return false;
+  const tail = url.slice(m.index + m[0].length);
+  return tail === '' || (/^[/?#]/.test(tail) && !foreign(tail));
+}
+
+// A pair's name: the part before the first =, percent-decoded where possible.
+function pairName(pair) {
+  const raw = pair.split('=')[0];
+  try { return decodeURIComponent(raw); } catch { return raw; }
+}
+
+// The query of `url` as written: where its ? sits, where it ends (the # or
+// the end of the string), and its &-separated pairs. Null when there is none.
+function queryOf(url) {
+  const hash = url.indexOf('#');
+  const end = hash === -1 ? url.length : hash;
+  const q = url.indexOf('?');
+  if (q === -1 || q > end) return null;
+  return { q, end, pairs: url.slice(q + 1, end).split('&') };
+}
+
+function isTracking(pair, onShop) {
+  const name = pairName(pair);
+  return name.startsWith('utm_') || TRACKING.has(name) || (onShop && SHOP_TRACKING.has(name));
+}
+
+// Removes tracking pairs from the query as written in `url`, leaving every
+// other character alone. Returns `url` itself when nothing is removed.
+function stripTracking(url, onShop) {
+  const query = queryOf(url);
+  if (!query) return url;
+  const { q, end, pairs } = query;
+  const kept = pairs.filter(pair => !isTracking(pair, onShop) || foreign(pair));
+  if (kept.length === pairs.length) return url;
+  const rest = kept.length ? '?' + kept.join('&') : '';
+  return url.slice(0, q) + rest + url.slice(end);
+}
+
+// The `keep` pairs of the query as written, in order and spelling, as a
+// query string ('' when there are none).
+function keptQuery(url, keep) {
+  const query = queryOf(url);
+  const kept = query ? query.pairs.filter(pair => keep.includes(pairName(pair))) : [];
+  return kept.length ? '?' + kept.join('&') : '';
+}
+
+export function tidyUrl(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch { return url; }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return url;
+  const shop = SHOPS.find(row => row.host(parsed.hostname));
+  if (shop) {
+    const m = shop.id.exec(parsed.pathname);
+    if (m && discardableTail(url, shop.id)) {
+      return parsed.origin + shop.path(m[1]) + keptQuery(url, shop.keep);
+    }
+  }
+  return stripTracking(url, Boolean(shop)); // the generic rule
+}
+
+const URL_RUN = /https?:\/\/[^\s<>"']+/gi;
+const TRAILING = new Set(['.', ',', ';', ':', '!', '?', "'", '"']);
+const count = (s, ch) => s.split(ch).length - 1;
+
+// Peels sentence punctuation off the end of a matched run. A ")" goes only
+// while the run holds more ")" than "(", so a Wikipedia-style "_(film)" keeps it.
+function peel(run) {
+  let end = run.length;
+  while (end > 0) {
+    const c = run[end - 1];
+    const body = run.slice(0, end);
+    if (TRAILING.has(c) || (c === ')' && count(body, ')') > count(body, '('))) end--;
+    else break;
+  }
+  return end;
+}
+
+export function tidyUrls(text) {
+  let shortened = 0;
+  const out = text.replace(URL_RUN, run => {
+    const end = peel(run);
+    const url = run.slice(0, end);
+    const tidied = tidyUrl(url);
+    if (tidied !== url) shortened++;
+    return tidied + run.slice(end);
+  });
+  return { text: out, shortened };
+}
+```
+
+(For the reviewer, the change against 80f23f1 is: `TRACKING` loses `ref`, `ref_`, `tag` into a new `SHOP_TRACKING`; each `SHOPS` row gains `keep`; `isTracking`/`stripTracking` take `onShop` and share new helpers `pairName` and `queryOf`; new `keptQuery`; `tidyUrl` uses `SHOPS.find` and appends `keptQuery(url, shop.keep)` on a shop hit, and passes `Boolean(shop)` to the generic rule.)
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `node --test test/urls.test.js` — Expected: 62 pass, 0 fail.
+Run: `npm test` — Expected: 142 pass, 0 fail.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add js/urls.js test/urls.test.js
+git commit -m "feat: shop links keep their variant parameters; ref and tag go only on shop hosts (ruling B1)"
+```
+
+---
+
 ## Not in this plan
 
 Spec §6's manual check is the director's, on the VM copy after merge. Spec §8's out-of-scope items (alphabet spike, dictionary compression, short domain, cleaning on paste, expanding short links, threshold changes) are not touched.
