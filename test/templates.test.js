@@ -18,7 +18,7 @@ const css = (await read('css/styles.css')).replace(/\/\*[\s\S]*?\*\//g, '');
 
 // Files the visual-system plan has not converted yet: their checks run as
 // todo. Each task removes its files; the last task removes this set.
-const PENDING = new Set(['js/ui/dom.js', 'js/ui/reveal.js', 'js/ui/setup.js', 'js/ui/wishlist.js']);
+const PENDING = new Set(['js/ui/setup.js', 'js/ui/wishlist.js']);
 const options = file => (PENDING.has(file) ? { todo: 'not yet converted' } : {});
 
 const COLOUR = /#[0-9a-f]{3,8}\b|rgba?\(/i;
