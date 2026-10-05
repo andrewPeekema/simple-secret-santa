@@ -23,7 +23,7 @@
 <h1>Shorten-a-Link Tool</h1>
 <p class="byline">Design spec &middot; 2026-10-04 &middot; Simple Secret Santa<br>
 Target: <code>js/ui/wishlist.js</code> (<code>showCreateHints</code> and <code>generateHintLink</code>), new <code>js/shorten.js</code>,
-<code>css/styles.css</code> (one new rule group), <code>test/wishlist-wiring.test.js</code> (rewritten), new <code>test/shorten.test.js</code>,
+<code>css/styles.css</code> (one new rule group, four rules), <code>test/wishlist-wiring.test.js</code> (rewritten), new <code>test/shorten.test.js</code>,
 <code>README.md</code> (one sentence).<br>
 Prototype: <code>docs/superpowers/specs/2026-10-04-shorten-link-tool-prototype.html</code> &mdash; the approved look and behaviour, running
 against the live <code>css/styles.css</code> and <code>js/urls.js</code>. Serve the repo root and open it. Where this document and the prototype differ,
@@ -31,7 +31,7 @@ this document wins; the prototype's grey top line and pre-pasted example are pro
 Supersedes: <code>docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html</code> §3 (the generate flow) and its
 REQ-SSS-0003.1 and REQ-SSS-0003.2. That spec's §2 (the <code>js/urls.js</code> module) and its REQ-SSS-0003.3 stand unchanged.</p>
 
-<div class="note"><strong>Status: design approved in chat 2026-10-04 after three prototype rounds.</strong> The previous branch made shop-link
+<div class="note"><strong>Status: design approved in chat 2026-10-04 after three prototype rounds; critic findings 1&ndash;5 applied the same day.</strong> The previous branch made shop-link
 shortening automatic at Generate time. The user wants it opt-in instead: a collapsible section under the wishlist box where the participant pastes
 one link and copies back the short one, and the wishlist text is encoded exactly as typed. The seven <code>/code-review</code> findings against
 <code>js/urls.js</code> from the same day are deliberately left for a follow-up (§9); this spec changes who calls the function, not what it does.</div>
@@ -39,22 +39,22 @@ one link and copies back the short one, and the wishlist text is encoded exactly
 <h2>Requirements</h2>
 <h3>Decomposes</h3>
 <p><strong>REQ-SSS-0003</strong> &mdash; a participant can create an optional wishlist from the assignment link that only their Santa can open.
-Sub-IDs below are local to this spec; the earlier spec's 0003.1&ndash;0003.3 are cited with its filename.</p>
+Sub-IDs below are local to this spec and start at 0003.4 because <code>js/urls.js:40</code> and <code>test/urls.test.js:228</code> cite the earlier spec's REQ-SSS-0003.3 bare; the earlier spec's 0003.1&ndash;0003.3 are cited with its filename.</p>
 <ul>
- <li><strong>REQ-SSS-0003.1</strong> The wishlist link shall be generated from the textarea's text, trimmed, with no URL rewritten and no
+ <li><strong>REQ-SSS-0003.4</strong> The wishlist link shall be generated from the textarea's text, trimmed, with no URL rewritten and no
   character of the text changed before it enters <code>encodeHints</code>.</li>
- <li><strong>REQ-SSS-0003.2</strong> The wishlist create screen shall offer a section titled "Shorten a link", below the Generate button, that
+ <li><strong>REQ-SSS-0003.5</strong> The wishlist create screen shall offer a section titled "Shorten a link", below the Generate button, that
   is closed when the screen opens and opens only when the participant taps its title.</li>
- <li><strong>REQ-SSS-0003.3</strong> The section shall take one link in a single-line field and, as the participant types or pastes, show
+ <li><strong>REQ-SSS-0003.6</strong> The section shall take one link in a single-line field and, as the participant types or pastes, show
   <code>tidyUrl(input)</code> in a read-only field with a copy button whenever that result differs from the input.</li>
- <li><strong>REQ-SSS-0003.4</strong> When the field is empty the section shall show no result and no note; when the input is not an
+ <li><strong>REQ-SSS-0003.7</strong> When the field is empty the section shall show no result and no note; when the input is not an
   http(s) URL, or <code>tidyUrl</code> returns it unchanged, the section shall show the matching note from §5 and no result.</li>
- <li><strong>REQ-SSS-0003.5</strong> The section shall neither read nor write the wishlist textarea, and the Generate flow shall not read
+ <li><strong>REQ-SSS-0003.8</strong> The section shall neither read nor write the wishlist textarea, and the Generate flow shall not read
   the section.</li>
 </ul>
 <p><strong>REQ-SSS-0007</strong> &mdash; the README and the UI claim no more protection than the code delivers.</p>
 <ul>
- <li><strong>REQ-SSS-0007.1</strong> The section's description shall name exactly the six shop hosts of the earlier spec's §2.2 table and
+ <li><strong>REQ-SSS-0007.1</strong> The section's description shall name exactly the six shop hosts of the earlier spec's §2.2 table, limited to their product links, and
   shall describe every other link as losing only its tracking tags; the README sentence shall make the same claim and no stronger one.</li>
 </ul>
 <p><strong>Consulted, not changed:</strong> REQ-SSS-0004 (no fetch; <code>tidyUrl</code> is string work); REQ-SSS-0005 (a plain ES module, no
@@ -102,7 +102,8 @@ the screen already uses at 412&nbsp;px); REQ-SSS-0010 (no new colour token; ever
   <code>h1, h2, p, ol { margin: 0 }</code> (63).</li>
  <li>Guard tests. <code>test/templates.test.js</code> scans <code>index.html</code> and <code>js/ui/*.js</code>: the only inline style allowed
   is <code>display: none</code> (lines 55-59); no hex/rgb literal anywhere in those files (61-64); every class token used must be styled, where
-  "styled" is the substring <code>.token</code> in the stylesheet (52, 71-76); every class in the stylesheet must be used (79-84).
+  "styled" is <code>new RegExp('\\.' + token + '(?![\\w-])').test(css)</code> &mdash; <code>.token</code> not followed by a word character or hyphen,
+  anywhere in a selector (52, 71-76); every class in the stylesheet must be used (79-84).
   <code>test/styles.test.js</code>: colours only via <code>var(--…)</code> outside <code>:root</code> (34-45); font sizes only
   <code>--t-heading/--t-body/--t-note/inherit</code> (63-68); margin/padding/gap only <code>--s-1…--s-6</code>, <code>calc</code> of two,
   <code>0</code> or <code>auto</code> (70-82); no <code>!important</code>, <code>text-transform</code>, italic, <code>prefers-color-scheme</code>.
@@ -112,7 +113,7 @@ the screen already uses at 412&nbsp;px); REQ-SSS-0010 (no new colour token; ever
   The suite is 142/142 at <code>70e3f17</code> and must stay green.</li>
 </ul>
 
-<h2>2. The generate flow (REQ-SSS-0003.1, 0003.5)</h2>
+<h2>2. The generate flow (REQ-SSS-0003.4, 0003.5)</h2>
 <p>In <code>generateHintLink</code>: delete lines 61-68 (the <code>tidyUrls</code> call and textarea rewrite) and lines 85-87 and 96 (the
 shortened note). The 2000-character confirm and <code>encodeHints</code> take <code>hintsText</code> &mdash; the trimmed textarea value &mdash;
 as they did before the earlier branch. Nothing else in the function changes: empty-text alert, password derivation, URL assembly, hiding
@@ -120,7 +121,7 @@ as they did before the earlier branch. Nothing else in the function changes: emp
 <p>Line 10 becomes <code>import { shortenLink } from '../shorten.js';</code>. <code>wishlist.js</code> no longer imports from <code>urls.js</code>
 directly.</p>
 
-<h2>3. Module <code>js/shorten.js</code> (REQ-SSS-0003.3, 0003.4)</h2>
+<h2>3. Module <code>js/shorten.js</code> (REQ-SSS-0003.6, 0003.4)</h2>
 <p>A pure module directly under <code>js/</code>, beside <code>urls.js</code>, so the state logic is unit-tested in node without a DOM
 (<code>wishlist.js</code> touches <code>window</code> at import time and cannot be imported by a test).</p>
 <pre><code>import { tidyUrl } from './urls.js';
@@ -138,14 +139,14 @@ export function shortenLink(input)</code></pre>
   its export and its tests but has no caller in the app.</li>
 </ul>
 
-<h2>4. The section (REQ-SSS-0003.2, 0003.3, 0003.4, 0003.5)</h2>
+<h2>4. The section (REQ-SSS-0003.5, 0003.3, 0003.4, 0003.5)</h2>
 <h3>4.1 Markup</h3>
 <p>Inserted into the <code>showCreateHints</code> template between the Generate button (line 33) and the Back <code>&lt;p class="nav"&gt;</code>
 (line 34), inside <code>#hintsForm</code> so it hides with the form on the link-ready screen and comes back with Back, state intact:</p>
 <pre><code>&lt;hr class="sep"&gt;
 &lt;details class="tool"&gt;
     &lt;summary&gt;&lt;h2 class="section-title"&gt;Shorten a link &lt;span class="optional"&gt;(optional)&lt;/span&gt;&lt;/h2&gt;&lt;/summary&gt;
-    &lt;p class="note mt-2"&gt;Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.&lt;/p&gt;
+    &lt;p class="note mt-2"&gt;Paste a link to get a shorter one for your wishlist. Product links from Amazon, Etsy, eBay, Walmart, Target and Best Buy are cut down to just the product; other links only lose their tracking tags.&lt;/p&gt;
     &lt;input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false"&gt;
     &lt;div id="shortenResult" style="display: none;"&gt;
         &lt;input type="text" id="shortenOut" class="in in--url mt-3" readonly&gt;
@@ -154,11 +155,11 @@ export function shortenLink(input)</code></pre>
     &lt;p id="shortenNote" class="note mt-2" style="display: none;"&gt;&lt;/p&gt;
 &lt;/details&gt;</code></pre>
 <ul>
- <li>No <code>open</code> attribute: closed on every render (REQ-SSS-0003.2). <code>showCreateHints</code> re-renders the template each time it
+ <li>No <code>open</code> attribute: closed on every render (REQ-SSS-0003.5). <code>showCreateHints</code> re-renders the template each time it
   is entered from the reveal screen, so re-entry gives a closed, empty section; Back from the link-ready screen only un-hides the form, so the
   section keeps whatever the participant had in it.</li>
  <li>The title follows <code>index.html:55</code> exactly (an <code>h2.section-title</code> with <code>span.optional</code> and parentheses). It is
-  the only <code>h2</code> on the screen; <code>h1, h2 { margin: 0 }</code> keeps it on the summary line.</li>
+  the only <code>h2</code> on the screen; §4.3's flex summary keeps it on one line with the chevron.</li>
  <li><code>type="url"</code> gives phones a URL keyboard; there is no enclosing <code>&lt;form&gt;</code>, so no browser validation UI appears.
   <code>#shortenOut</code> is a <code>readonly</code> text input in the mono <code>in--url</code> style, the same as the hint-link field.</li>
  <li>Every class token is already styled except <code>tool</code>, which §4.3 styles; both inline styles are <code>display: none</code>; no
@@ -182,16 +183,20 @@ DOM from the state and nothing else:</p>
   visibility.</li>
  <li>Values go through <code>.value</code> and <code>.textContent</code>, never <code>innerHTML</code>, so no escaping question arises.</li>
  <li><code>renderShortener</code> and the listener reference <code>shortenIn</code>, <code>shortenOut</code>, <code>shortenResult</code> and
-  <code>shortenNote</code> only &mdash; never <code>hintsText</code> (REQ-SSS-0003.5). Copy uses <code>copyToClipboard</code> through the
+  <code>shortenNote</code> only &mdash; never <code>hintsText</code> (REQ-SSS-0003.8). Copy uses <code>copyToClipboard</code> through the
   existing <code>window</code> shim, unchanged.</li>
 </ul>
 
 <h3>4.3 CSS (<code>css/styles.css</code>)</h3>
 <p>One new rule group, placed after the <code>details.how</code> group (lines 344-376) and modelled on it, with a comment line naming this spec.
-Rendered result: the summary line shows a small grey chevron, "▸" closed and "▾" open, before the serif title; no default disclosure
-marker; pointer cursor. No hover colour.</p>
+Rendered result: one line, a small grey chevron ("▸" closed, "▾" open) then the serif title, baseline-aligned; no default disclosure
+marker; pointer cursor; no hover colour. The summary must be <code>display: flex</code>: its child <code>h2</code> is a block, so with a
+plain summary the inline <code>::before</code> wraps onto its own line above the title (critic finding 1, rendered at 412&nbsp;px).</p>
 <pre><code>/* The shorten-a-link tool on the wishlist screen (spec 2026-10-04-shorten-link-tool-design §4.3). */
 details.tool summary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
     cursor: pointer;
     list-style: none;
 }
@@ -201,25 +206,24 @@ details.tool summary::-webkit-details-marker {
 }
 
 details.tool summary::before {
-    content: "▸ ";
+    content: "▸";
     color: var(--text-3);
     font-family: var(--font-sans);
     font-size: var(--t-note);
 }
 
 details.tool[open] summary::before {
-    content: "▾ ";
+    content: "▾";
 }</code></pre>
-<p>If <code>details.how</code>'s summary rules already set <code>cursor</code> and <code>list-style</code> in a way that can be shared without
-changing the main page, the lead may share them; the rendered result above is what is checked. Only the <code>tool</code> class is new; it is
+<p>The rules are written out in full rather than shared with <code>details.how</code>; the rendered result above is what is checked. Only the <code>tool</code> class is new; it is
 used by §4.1, so both class checks in <code>templates.test.js</code> pass. Every value is a token or unrestricted property under
-<code>styles.test.js</code> (§1).</p>
+<code>styles.test.js</code> (§1): <code>gap</code> is a checked spacing property and <code>var(--s-2)</code> is an allowed step.</p>
 
 <h2>5. Copy (REQ-SSS-0007.1)</h2>
 <table>
 <tr><th>Where</th><th>String</th><th>Note</th></tr>
 <tr><td>Summary, <code>h2.section-title</code></td><td>Shorten a link <span style="color:#5c6670">(optional)</span></td><td>Title chosen by the user; "(optional)" in the existing <code>span.optional</code> shape.</td></tr>
-<tr><td>Description, <code>p.note</code></td><td>Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.</td><td>Names exactly the six hosts in the earlier spec's §2.2 table and the generic rule. Says nothing about privacy or protection. If the shop table ever changes, this sentence changes with it.</td></tr>
+<tr><td>Description, <code>p.note</code></td><td>Paste a link to get a shorter one for your wishlist. Product links from Amazon, Etsy, eBay, Walmart, Target and Best Buy are cut down to just the product; other links only lose their tracking tags.</td><td>Names exactly the six hosts in the earlier spec's §2.2 table and the generic rule. "Product links" because a shop URL whose path has no product ID (a search or store page) falls through to the generic rule and only loses tracking tags (<code>urls.js:100-107</code>; critic finding 5). Says nothing about privacy or protection. If the shop table ever changes, this sentence changes with it.</td></tr>
 <tr><td><code>#shortenIn</code> placeholder</td><td>https://www.amazon.com/…</td><td>Shows the expected shape (full URL with scheme).</td></tr>
 <tr><td>Copy button</td><td>Copy short link</td><td><code>copyToClipboard</code> restores this label after "✓ Copied".</td></tr>
 <tr><td><code>#shortenNote</code>, state <code>notUrl</code></td><td>Paste one full link, starting with http.</td><td></td></tr>
@@ -239,18 +243,19 @@ used by §4.1, so both class checks in <code>templates.test.js</code> pass. Ever
  <li>Leading and trailing whitespace around a long Amazon URL &rarr; the same <code>short</code> result as without it.</li>
  <li><code>shortenLink(shortenLink(u).url).state === 'unchanged'</code> for the Amazon case (idempotence through the tool).</li>
 </ul>
-<h3>6.2 <code>test/wishlist-wiring.test.js</code> (rewritten; keep the <code>functionText</code> helper)</h3>
+<h3>6.2 <code>test/wishlist-wiring.test.js</code> (rewritten)</h3>
+<p>The <code>functionText(name)</code> helper is generalised to find <code>export (async )?function NAME</code> &mdash; today it matches only <code>export async function</code>, and <code>showCreateHints</code> is not async (<code>wishlist.js:16</code>). It still slices to the next <code>\nexport </code>. <code>showCreateHints</code> stays synchronous.</p>
 <ul>
  <li>Import line: <code>/^import \{ shortenLink \} from '\.\.\/shorten\.js';$/m</code> matches, and no line imports from <code>'../urls.js'</code>.</li>
  <li><code>generateHintLink</code> body: contains <code>encodeHints(hintsText,</code>; contains neither <code>tidyUrls(</code>, <code>tidyUrl(</code>,
-  <code>shortenLink(</code>, <code>shortenIn</code> nor <code>Shortened</code> (REQ-SSS-0003.1, 0003.5).</li>
+  <code>shortenLink(</code>, <code>shortenIn</code> nor <code>Shortened</code> (REQ-SSS-0003.4, 0003.5).</li>
  <li><code>showCreateHints</code> body: contains <code>&lt;details class="tool"&gt;</code> and not <code>&lt;details class="tool" open</code> or
   <code>&lt;details open</code>; contains <code>id="shortenIn"</code>, <code>id="shortenOut"</code>, <code>id="shortenResult"</code>,
   <code>id="shortenNote"</code>; the Generate button's <code>onclick="generateHintLink()"</code> appears before <code>&lt;details class="tool"&gt;</code>,
-  which appears before <code>class="nav"</code> (REQ-SSS-0003.2 placement); contains the §5 description string and the §5 title string verbatim
+  which appears before <code>class="nav"</code> (REQ-SSS-0003.5 placement); contains the §5 description string and the §5 title string verbatim
   (REQ-SSS-0007.1).</li>
  <li>The source slice from <code>function renderShortener</code> to the next <code>\nexport </code> (or <code>\nfunction </code>) calls
-  <code>shortenLink(</code> and does not contain <code>hintsText</code> (REQ-SSS-0003.5); it contains both §5 note strings verbatim.</li>
+  <code>shortenLink(</code> and does not contain <code>hintsText</code> (REQ-SSS-0003.8); it contains both §5 note strings verbatim.</li>
 </ul>
 <h3>6.3 Existing suites</h3>
 <ul>
@@ -277,7 +282,7 @@ typed; opening the wishlist link with the password shows the long URL verbatim.<
   <code>js/ui/dom.js</code>, <code>js/format.js</code>, <code>js/compress.js</code>, <code>js/secret.js</code>.</li>
  <li>In <code>wishlist.js</code> only <code>showCreateHints</code>, <code>generateHintLink</code>, the import line and the new
   <code>renderShortener</code> change; inline <code>onclick</code> handlers stay as they are; no inline style other than <code>display: none</code>;
-  no colour literal; no new class other than <code>tool</code>.</li>
+  no colour literal; no new class other than <code>tool</code>; no CSS beyond the four rules of §4.3.</li>
  <li>Commit per task on branch <code>shorten-link-tool</code>; do not push; do not merge to main &mdash; the director does that on the user's ruling.</li>
 </ul>
 

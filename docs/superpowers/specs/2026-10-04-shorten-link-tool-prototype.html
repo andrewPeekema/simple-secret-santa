@@ -13,18 +13,21 @@
         .proto { font-size: var(--t-note); color: var(--text-3); text-align: center; margin-bottom: var(--s-3); }
 
         /* Candidate rules for styles.css: the collapsible tool. */
-        details.tool > summary {
+        details.tool summary {
+            display: flex;
+            align-items: baseline;
+            gap: var(--s-2);
             cursor: pointer;
             list-style: none;
         }
-        details.tool > summary::-webkit-details-marker { display: none; }
-        details.tool > summary::before {
-            content: '▸ ';
+        details.tool summary::-webkit-details-marker { display: none; }
+        details.tool summary::before {
+            content: '▸';
             color: var(--text-3);
             font-family: var(--font-sans);
             font-size: var(--t-note);
         }
-        details.tool[open] > summary::before { content: '▾ '; }
+        details.tool[open] summary::before { content: '▾'; }
     </style>
 </head>
 <body>
@@ -56,7 +59,7 @@
             <hr class="sep">
             <details class="tool">
                 <summary><h2 class="section-title" id="toolTitle">Shorten a link <span class="optional">(optional)</span></h2></summary>
-                <p class="note mt-2">Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.</p>
+                <p class="note mt-2">Paste a link to get a shorter one for your wishlist. Product links from Amazon, Etsy, eBay, Walmart, Target and Best Buy are cut down to just the product; other links only lose their tracking tags.</p>
                 <input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false">
                 <div id="shortenResult" style="display: none;">
                     <input type="text" id="shortenOut" class="in in--url mt-3" readonly>
