@@ -326,7 +326,7 @@ git commit -m "feat: Generate encodes the wishlist text as typed; no automatic l
 
 **Files:**
 - Modify: `js/ui/wishlist.js` (new `renderShortener` above `showCreateHints`; the `showCreateHints` template and listeners)
-- Modify: `css/styles.css` (new rule group after `.how-body li + li`, the end of the "How it works" section, ~line 391)
+- Modify: `css/styles.css` (new rule group directly after `details.how[open] summary::before { … }`, line 376, before `.how-body`)
 - Modify: `README.md:11`
 - Test: `test/wishlist-wiring.test.js` (append)
 
@@ -457,11 +457,11 @@ Then, after the closing `});` of the existing `#hintsText` input listener and be
 
 - [ ] **Step 5: Add the CSS**
 
-In `css/styles.css`, after the rule
+In `css/styles.css`, directly after the rule (line 376) and before `.how-body {`
 
 ```css
-.how-body li + li {
-    margin-top: var(--s-1);
+details.how[open] summary::before {
+    transform: rotate(90deg);
 }
 ```
 
@@ -517,11 +517,9 @@ Expected: no output.
 Run: `grep -c 'Shortened\|tidyUrls' js/ui/wishlist.js`
 Expected: `0`.
 
-- [ ] **Step 8: Check it in a browser**
+No browser check is run by the lead (ruling B1): spec §7's manual check runs on the VM after merge, by the director.
 
-Run: `python3 -m http.server 8765 --bind 127.0.0.1` from the worktree root (in the background), then with a headless browser if one is available (`chromium-browser --headless --screenshot` or Playwright), otherwise skip this step and report that it was skipped. Generate a group, open one assignment link, press "Create your wishlist", and confirm: the closed "▸ Shorten a link (optional)" line sits on one line between Generate and Back; with the section opened, pasting the `LONG_AMAZON` URL from Task 1 shows `https://www.amazon.com/dp/B0ABCDEFGH` in the mono field. Stop the server afterwards. The director's full manual check (spec §7) runs on the VM after merge.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add js/ui/wishlist.js css/styles.css README.md test/wishlist-wiring.test.js
