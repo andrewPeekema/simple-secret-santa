@@ -375,6 +375,30 @@ details.how[open] summary::before {
     transform: rotate(90deg);
 }
 
+/* The shorten-a-link tool on the wishlist screen (spec 2026-10-04-shorten-link-tool-design §4.3). */
+details.tool summary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    cursor: pointer;
+    list-style: none;
+}
+
+details.tool summary::-webkit-details-marker {
+    display: none;
+}
+
+details.tool summary::before {
+    content: "▸";
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: var(--t-note);
+}
+
+details.tool[open] summary::before {
+    content: "▾";
+}
+
 .how-body {
     padding: var(--s-3) var(--s-4) var(--s-4);
     border-top: 1px solid var(--line);

@@ -13,6 +13,30 @@ const INVALID_PASSWORD_HTML = `
             <div class="tint tint--danger note mt-3">Invalid password. Only the assigned Secret Santa has the correct password.</div>
         `;
 
+// The shorten-a-link tool (spec 2026-10-04-shorten-link-tool-design §4.2).
+// Reads and writes only the tool's own fields, never #hintsText (REQ-SSS-0003.8).
+function renderShortener() {
+    const result = shortenLink(document.getElementById('shortenIn').value);
+    const box = document.getElementById('shortenResult');
+    const note = document.getElementById('shortenNote');
+    const notes = {
+        notUrl: 'Paste one full link, starting with http.',
+        unchanged: 'That link is already as short as it gets.',
+    };
+    if (result.state === 'short') {
+        document.getElementById('shortenOut').value = result.url;
+        box.style.display = '';
+    } else {
+        box.style.display = 'none';
+    }
+    if (notes[result.state]) {
+        note.textContent = notes[result.state];
+        note.style.display = '';
+    } else {
+        note.style.display = 'none';
+    }
+}
+
 export function showCreateHints(recipientName, salt) {
     document.getElementById('mainContainer').style.display = 'none';
     document.getElementById('revealSection').style.display = 'none';
@@ -31,6 +55,17 @@ export function showCreateHints(recipientName, salt) {
             <p class="note mt-2">Wishlists are gift-wrapped, not locked up. Keep anything private off them. 🎁</p>
             <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
             <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
+            <hr class="sep">
+            <details class="tool">
+                <summary><h2 class="section-title">Shorten a link <span class="optional">(optional)</span></h2></summary>
+                <p class="note mt-2">Paste a link to get a shorter one for your wishlist. Product links from Amazon, Etsy, eBay, Walmart, Target and Best Buy are cut down to just the product; other links only lose their tracking tags.</p>
+                <input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false">
+                <div id="shortenResult" style="display: none;">
+                    <input type="text" id="shortenOut" class="in in--url mt-3" readonly>
+                    <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('shortenOut').value, this)">Copy short link</button>
+                </div>
+                <p id="shortenNote" class="note mt-2" style="display: none;"></p>
+            </details>
             <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
         </div>
         <div id="hintLinkDisplay" class="mt-5" style="display: none;"></div>
@@ -46,6 +81,8 @@ export function showCreateHints(recipientName, salt) {
             warning.style.display = 'none';
         }
     });
+
+    document.getElementById('shortenIn').addEventListener('input', renderShortener);
 }
 
 export async function generateHintLink() {
