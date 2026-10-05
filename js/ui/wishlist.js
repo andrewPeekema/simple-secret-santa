@@ -7,11 +7,35 @@ import { encodeHints, encodeHintName } from '../format.js';
 import { simpleHash, crc16, xorDecrypt } from '../secret.js';
 import { decompressBytes } from '../compress.js';
 import { bytesToUtf8 } from '../codec.js';
-import { tidyUrls } from '../urls.js';
+import { shortenLink } from '../shorten.js';
 
 const INVALID_PASSWORD_HTML = `
             <div class="tint tint--danger note mt-3">Invalid password. Only the assigned Secret Santa has the correct password.</div>
         `;
+
+// The shorten-a-link tool (spec 2026-10-04-shorten-link-tool-design §4.2).
+// Reads and writes only the tool's own fields, never #hintsText (REQ-SSS-0003.8).
+function renderShortener() {
+    const result = shortenLink(document.getElementById('shortenIn').value);
+    const box = document.getElementById('shortenResult');
+    const note = document.getElementById('shortenNote');
+    const notes = {
+        notUrl: 'Paste one full link, starting with http.',
+        unchanged: 'That link is already as short as it gets.',
+    };
+    if (result.state === 'short') {
+        document.getElementById('shortenOut').value = result.url;
+        box.style.display = '';
+    } else {
+        box.style.display = 'none';
+    }
+    if (notes[result.state]) {
+        note.textContent = notes[result.state];
+        note.style.display = '';
+    } else {
+        note.style.display = 'none';
+    }
+}
 
 export function showCreateHints(recipientName, salt) {
     document.getElementById('mainContainer').style.display = 'none';
@@ -31,6 +55,17 @@ export function showCreateHints(recipientName, salt) {
             <p class="note mt-2">Wishlists are gift-wrapped, not locked up. Keep anything private off them. 🎁</p>
             <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
             <button class="btn btn--primary btn--block mt-3" onclick="generateHintLink()">Generate link</button>
+            <hr class="sep">
+            <details class="tool">
+                <summary><h2 class="section-title">Shorten a link <span class="optional">(optional)</span></h2></summary>
+                <p class="note mt-2">Paste a link to get a shorter one for your wishlist. Product links from Amazon, Etsy, eBay, Walmart, Target and Best Buy are cut down to just the product; other links only lose their tracking tags.</p>
+                <input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false">
+                <div id="shortenResult" style="display: none;">
+                    <input type="text" id="shortenOut" class="in in--url mt-3" readonly>
+                    <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('shortenOut').value, this)">Copy short link</button>
+                </div>
+                <p id="shortenNote" class="note mt-2" style="display: none;"></p>
+            </details>
             <p class="nav"><button class="link" onclick="document.getElementById('hintsSection').style.display='none'; document.getElementById('revealSection').style.display='block';">Back</button></p>
         </div>
         <div id="hintLinkDisplay" class="mt-5" style="display: none;"></div>
@@ -46,6 +81,8 @@ export function showCreateHints(recipientName, salt) {
             warning.style.display = 'none';
         }
     });
+
+    document.getElementById('shortenIn').addEventListener('input', renderShortener);
 }
 
 export async function generateHintLink() {
@@ -58,16 +95,7 @@ export async function generateHintLink() {
         return;
     }
 
-    // Shop links are cut to their short form before encoding, and the owner
-    // sees the cleaned text in the textarea (REQ-SSS-0003.1, .2).
-    const tidy = tidyUrls(hintsText);
-    if (tidy.shortened > 0) {
-        const textarea = document.getElementById('hintsText');
-        textarea.value = tidy.text;
-        textarea.dispatchEvent(new Event('input'));
-    }
-
-    if (tidy.text.length > 2000) {
+    if (hintsText.length > 2000) {
         if (!confirm('Your hints are very long and may create a URL that doesn\'t work in all browsers or apps. Continue anyway?')) {
             return;
         }
@@ -75,16 +103,13 @@ export async function generateHintLink() {
 
     const hintPassword = simpleHash('pair-' + recipientName + '-' + salt).padStart(6, '0').substring(0, 6);
 
-    const encoded = await encodeHints(tidy.text, hintPassword);
+    const encoded = await encodeHints(hintsText, hintPassword);
     // The owner's name rides in front of the ciphertext (REQ-SSS-0011).
     const hintUrl = window.location.origin + window.location.pathname + '#h-' + encodeHintName(recipientName) + '.' + encoded;
 
     // The link replaces the form (spec §5.5). The form is only hidden, so
     // Back on the link screen restores it with the text still in place.
     document.getElementById('hintsForm').style.display = 'none';
-    const shortenedNote = tidy.shortened > 0
-        ? `<p class="note mt-3">Shortened ${tidy.shortened} ${tidy.shortened === 1 ? 'link' : 'links'}.</p>`
-        : '';
     const display = document.getElementById('hintLinkDisplay');
     display.style.display = 'block';
     display.innerHTML = `
@@ -93,7 +118,6 @@ export async function generateHintLink() {
             <input type="text" class="in in--url" value="${escapeHtml(hintUrl)}" readonly id="hint-link-input">
             <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)">Copy link</button>
             <p class="note mt-3">Share it with the group. Whoever has your wishlist password—your Secret Santa—can open it.</p>
-            ${shortenedNote}
         </div>
         <p class="nav"><button class="link" onclick="document.getElementById('hintLinkDisplay').style.display='none'; document.getElementById('hintsForm').style.display='';">Back</button></p>
     `;
