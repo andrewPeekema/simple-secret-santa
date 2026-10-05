@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Shorten-a-Link Tool</title>
+<style>
+ :root{--ink:#1a1a1a;--mut:#5c6670;--line:#dfe3e8;--accent:#2f5d8a;--warn:#8a5a2f;--bg:#fbfcfd}
+ body{max-width:52rem;margin:0 auto;padding:2.5rem 1.5rem 6rem;background:var(--bg);color:var(--ink);
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif}
+ h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.02em}
+ h2{font-size:1.3rem;margin:2.6rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--line)}
+ h3{font-size:1.02rem;margin:1.6rem 0 .4rem;color:var(--accent)}
+ .byline{color:var(--mut);font-size:.9rem;margin-bottom:2rem}
+ table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+ th,td{border:1px solid var(--line);padding:.5rem .65rem;text-align:left;vertical-align:top}
+ th{background:#eef2f6;font-weight:600}
+ code{background:#eceff3;padding:.1rem .33rem;border-radius:3px;font-size:.88em;font-family:ui-monospace,Menlo,monospace}
+ pre{background:#1f2530;color:#e6edf3;padding:.9rem 1.1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+ pre code{background:none;color:inherit;padding:0}
+ .note{border-left:4px solid var(--accent);background:#eef4fa;padding:.75rem 1rem;margin:1.1rem 0;border-radius:0 4px 4px 0}
+ .warn{border-left-color:var(--warn);background:#faf3ea}
+ ul,ol{padding-left:1.35rem}li{margin:.3rem 0}
+</style></head><body>
+
+<h1>Shorten-a-Link Tool</h1>
+<p class="byline">Design spec &middot; 2026-10-04 &middot; Simple Secret Santa<br>
+Target: <code>js/ui/wishlist.js</code> (<code>showCreateHints</code> and <code>generateHintLink</code>), new <code>js/shorten.js</code>,
+<code>css/styles.css</code> (one new rule group), <code>test/wishlist-wiring.test.js</code> (rewritten), new <code>test/shorten.test.js</code>,
+<code>README.md</code> (one sentence).<br>
+Prototype: <code>docs/superpowers/specs/2026-10-04-shorten-link-tool-prototype.html</code> &mdash; the approved look and behaviour, running
+against the live <code>css/styles.css</code> and <code>js/urls.js</code>. Serve the repo root and open it. Where this document and the prototype differ,
+this document wins; the prototype's grey top line and pre-pasted example are prototype chrome, not design.<br>
+Supersedes: <code>docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html</code> §3 (the generate flow) and its
+REQ-SSS-0003.1 and REQ-SSS-0003.2. That spec's §2 (the <code>js/urls.js</code> module) and its REQ-SSS-0003.3 stand unchanged.</p>
+
+<div class="note"><strong>Status: design approved in chat 2026-10-04 after three prototype rounds.</strong> The previous branch made shop-link
+shortening automatic at Generate time. The user wants it opt-in instead: a collapsible section under the wishlist box where the participant pastes
+one link and copies back the short one, and the wishlist text is encoded exactly as typed. The seven <code>/code-review</code> findings against
+<code>js/urls.js</code> from the same day are deliberately left for a follow-up (§9); this spec changes who calls the function, not what it does.</div>
+
+<h2>Requirements</h2>
+<h3>Decomposes</h3>
+<p><strong>REQ-SSS-0003</strong> &mdash; a participant can create an optional wishlist from the assignment link that only their Santa can open.
+Sub-IDs below are local to this spec; the earlier spec's 0003.1&ndash;0003.3 are cited with its filename.</p>
+<ul>
+ <li><strong>REQ-SSS-0003.1</strong> The wishlist link shall be generated from the textarea's text, trimmed, with no URL rewritten and no
+  character of the text changed before it enters <code>encodeHints</code>.</li>
+ <li><strong>REQ-SSS-0003.2</strong> The wishlist create screen shall offer a section titled "Shorten a link", below the Generate button, that
+  is closed when the screen opens and opens only when the participant taps its title.</li>
+ <li><strong>REQ-SSS-0003.3</strong> The section shall take one link in a single-line field and, as the participant types or pastes, show
+  <code>tidyUrl(input)</code> in a read-only field with a copy button whenever that result differs from the input.</li>
+ <li><strong>REQ-SSS-0003.4</strong> When the field is empty the section shall show no result and no note; when the input is not an
+  http(s) URL, or <code>tidyUrl</code> returns it unchanged, the section shall show the matching note from §5 and no result.</li>
+ <li><strong>REQ-SSS-0003.5</strong> The section shall neither read nor write the wishlist textarea, and the Generate flow shall not read
+  the section.</li>
+</ul>
+<p><strong>REQ-SSS-0007</strong> &mdash; the README and the UI claim no more protection than the code delivers.</p>
+<ul>
+ <li><strong>REQ-SSS-0007.1</strong> The section's description shall name exactly the six shop hosts of the earlier spec's §2.2 table and
+  shall describe every other link as losing only its tracking tags; the README sentence shall make the same claim and no stronger one.</li>
+</ul>
+<p><strong>Consulted, not changed:</strong> REQ-SSS-0004 (no fetch; <code>tidyUrl</code> is string work); REQ-SSS-0005 (a plain ES module, no
+dependency, no build step); REQ-SSS-0009 (the section is one column of full-width <code>.in</code> fields and a block button, the same shapes
+the screen already uses at 412&nbsp;px); REQ-SSS-0010 (no new colour token; every new rule uses existing variables); REQ-SSS-0006 and REQ-SSS-0011
+(password and link format untouched).</p>
+
+<h2>0. Rulings</h2>
+<table>
+<tr><th>Question</th><th>Ruling</th></tr>
+<tr><td>Opt-in or automatic</td><td>Opt-in. Generate encodes the text as typed; the shortener is a separate tool the participant chooses to use (user 2026-10-04).</td></tr>
+<tr><td>How the result comes back</td><td>A separate in/out box with a Copy button; the wishlist textarea is never touched (user 2026-10-04, over "insert into wishlist" and "clean in place").</td></tr>
+<tr><td>Prototype first</td><td>Three rounds on the VM copy of the stylesheet; the third approved (user 2026-10-04).</td></tr>
+<tr><td>Collapsible</td><td>Yes, a <code>&lt;details&gt;</code>, closed by default (user 2026-10-04).</td></tr>
+<tr><td>One link or many</td><td>One URL at a time, in a single-line field; <code>tidyUrls</code> (multi-URL text) is no longer called from the UI (user 2026-10-04).</td></tr>
+<tr><td>Title</td><td>"Shorten a link", chosen over "Shorten a shop link", "Got a long shop link?", "Clean up a long link", "Make a link shorter", "Trim a link" (user 2026-10-04).</td></tr>
+<tr><td>Description</td><td>Must say precisely what the tool does; the §5 text names the six shops and the tracking-only behaviour for other hosts (user 2026-10-04).</td></tr>
+<tr><td>Placement</td><td>Below the Generate button, above Back (user 2026-10-04).</td></tr>
+<tr><td>Live or button</td><td>Live on <code>input</code>; the function is pure and instant (design, approved with the prototype).</td></tr>
+<tr><td>Review findings in <code>urls.js</code></td><td>Deferred to a follow-up after this lands; <code>js/urls.js</code> is byte-identical in this work (user: "before we make these changes", 2026-10-04).</td></tr>
+</table>
+
+<h2>1. Facts</h2>
+<p>From Explore passes on 2026-10-04 at <code>main 70e3f17</code>; the lead verifies before relying on a line number.</p>
+<ul>
+ <li><code>showCreateHints</code> (<code>js/ui/wishlist.js:16-49</code>) renders <code>#hintsForm</code> as one template string: textarea
+  <code>#hintsText</code> (line 30), the gift-wrapped note (31), <code>#hintLengthWarning</code> (32), the Generate button (33) and
+  <code>&lt;p class="nav"&gt;</code> Back (34); then an empty <code>#hintLinkDisplay</code> (36). Lines 39-48 attach the 1500-character
+  warning listener to <code>#hintsText</code>.</li>
+ <li><code>generateHintLink</code> (lines 51-100): trims the text (52); alerts if empty (56-59); lines 61-68 call <code>tidyUrls</code> and
+  rewrite the textarea when <code>shortened &gt; 0</code>; the 2000-character confirm (70-74) and <code>encodeHints</code> (78) use
+  <code>tidy.text</code>; lines 85-87 build the "Shortened N links." note that line 96 places in the link-ready template. Line 10 is
+  <code>import { tidyUrls } from '../urls.js';</code>.</li>
+ <li><code>js/urls.js</code> exports <code>tidyUrl(url): string</code> (line 96; returns the input itself when nothing changes, never throws) and
+  <code>tidyUrls(text): { text, shortened }</code> (line 127). No imports, no DOM.</li>
+ <li><code>copyToClipboard(text, button)</code> is exported from <code>js/ui/dom.js:22</code> and reached from inline <code>onclick</code>
+  strings through the <code>window</code> shim in <code>js/main.js</code>. The existing button shape is <code>wishlist.js:94</code>:
+  <code>&lt;button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('hint-link-input').value, this)"&gt;Copy link&lt;/button&gt;</code>.</li>
+ <li><code>css/styles.css</code>: <code>.in</code> (208) is <code>display:block; width:100%; height:42px</code>, applied by class only;
+  <code>.in.in--url</code> (239) is the mono, note-sized, <code>--text-2</code> variant already used on a <code>type="text"</code> field;
+  <code>.section-title</code> (128) and <code>.section-title .optional</code> (136); <code>hr.sep</code> (90); <code>.note</code> (142);
+  <code>.mt-2/.mt-3</code> (434-435). <code>details.how</code> (344-376) is the existing collapsible on the main page: <code>list-style:none</code>,
+  <code>cursor:pointer</code>, <code>summary::-webkit-details-marker { display:none }</code>, a <code>summary::before</code> glyph. The
+  optional-title shape in use is <code>index.html:55</code>: <code>&lt;h2 class="section-title"&gt;Exclusions &lt;span class="optional"&gt;(optional)&lt;/span&gt;&lt;/h2&gt;</code>.
+  <code>h1, h2, p, ol { margin: 0 }</code> (63).</li>
+ <li>Guard tests. <code>test/templates.test.js</code> scans <code>index.html</code> and <code>js/ui/*.js</code>: the only inline style allowed
+  is <code>display: none</code> (lines 55-59); no hex/rgb literal anywhere in those files (61-64); every class token used must be styled, where
+  "styled" is the substring <code>.token</code> in the stylesheet (52, 71-76); every class in the stylesheet must be used (79-84).
+  <code>test/styles.test.js</code>: colours only via <code>var(--…)</code> outside <code>:root</code> (34-45); font sizes only
+  <code>--t-heading/--t-body/--t-note/inherit</code> (63-68); margin/padding/gap only <code>--s-1…--s-6</code>, <code>calc</code> of two,
+  <code>0</code> or <code>auto</code> (70-82); no <code>!important</code>, <code>text-transform</code>, italic, <code>prefers-color-scheme</code>.
+  <code>test/copy-button.test.js</code> unit-tests <code>copyToClipboard</code> only. <code>test/wishlist-wiring.test.js</code> (lines 17-29) pins
+  the import of <code>tidyUrls</code> and <code>tidyUrls(</code> before <code>encodeHints(tidy.text,</code> in <code>generateHintLink</code>; its
+  <code>functionText()</code> helper (10-15) slices from <code>export async function NAME</code> to the next <code>\nexport </code>.
+  The suite is 142/142 at <code>70e3f17</code> and must stay green.</li>
+</ul>
+
+<h2>2. The generate flow (REQ-SSS-0003.1, 0003.5)</h2>
+<p>In <code>generateHintLink</code>: delete lines 61-68 (the <code>tidyUrls</code> call and textarea rewrite) and lines 85-87 and 96 (the
+shortened note). The 2000-character confirm and <code>encodeHints</code> take <code>hintsText</code> &mdash; the trimmed textarea value &mdash;
+as they did before the earlier branch. Nothing else in the function changes: empty-text alert, password derivation, URL assembly, hiding
+<code>#hintsForm</code>, the link-ready template minus its <code>${shortenedNote}</code> line, and Back.</p>
+<p>Line 10 becomes <code>import { shortenLink } from '../shorten.js';</code>. <code>wishlist.js</code> no longer imports from <code>urls.js</code>
+directly.</p>
+
+<h2>3. Module <code>js/shorten.js</code> (REQ-SSS-0003.3, 0003.4)</h2>
+<p>A pure module directly under <code>js/</code>, beside <code>urls.js</code>, so the state logic is unit-tested in node without a DOM
+(<code>wishlist.js</code> touches <code>window</code> at import time and cannot be imported by a test).</p>
+<pre><code>import { tidyUrl } from './urls.js';
+
+// string -&gt; { state: 'empty' } | { state: 'notUrl' } | { state: 'unchanged' } | { state: 'short', url: string }
+export function shortenLink(input)</code></pre>
+<ul>
+ <li>Trim the input. Empty &rarr; <code>{ state: 'empty' }</code>.</li>
+ <li>Not an http(s) URL &rarr; <code>{ state: 'notUrl' }</code>. "Is an http(s) URL" means <code>new URL(trimmed)</code> does not throw and
+  <code>protocol</code> is <code>http:</code> or <code>https:</code>. No scheme is guessed: <code>www.amazon.com/dp/B0ABCDEFGH</code> is
+  <code>notUrl</code>.</li>
+ <li><code>tidyUrl(trimmed) === trimmed</code> &rarr; <code>{ state: 'unchanged' }</code>.</li>
+ <li>Otherwise <code>{ state: 'short', url: tidyUrl(trimmed) }</code>.</li>
+ <li>Never throws. It is the only caller of <code>tidyUrl</code> in <code>js/ui</code> or <code>js/shorten.js</code>; <code>tidyUrls</code> keeps
+  its export and its tests but has no caller in the app.</li>
+</ul>
+
+<h2>4. The section (REQ-SSS-0003.2, 0003.3, 0003.4, 0003.5)</h2>
+<h3>4.1 Markup</h3>
+<p>Inserted into the <code>showCreateHints</code> template between the Generate button (line 33) and the Back <code>&lt;p class="nav"&gt;</code>
+(line 34), inside <code>#hintsForm</code> so it hides with the form on the link-ready screen and comes back with Back, state intact:</p>
+<pre><code>&lt;hr class="sep"&gt;
+&lt;details class="tool"&gt;
+    &lt;summary&gt;&lt;h2 class="section-title"&gt;Shorten a link &lt;span class="optional"&gt;(optional)&lt;/span&gt;&lt;/h2&gt;&lt;/summary&gt;
+    &lt;p class="note mt-2"&gt;Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.&lt;/p&gt;
+    &lt;input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false"&gt;
+    &lt;div id="shortenResult" style="display: none;"&gt;
+        &lt;input type="text" id="shortenOut" class="in in--url mt-3" readonly&gt;
+        &lt;button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('shortenOut').value, this)"&gt;Copy short link&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;p id="shortenNote" class="note mt-2" style="display: none;"&gt;&lt;/p&gt;
+&lt;/details&gt;</code></pre>
+<ul>
+ <li>No <code>open</code> attribute: closed on every render (REQ-SSS-0003.2). <code>showCreateHints</code> re-renders the template each time it
+  is entered from the reveal screen, so re-entry gives a closed, empty section; Back from the link-ready screen only un-hides the form, so the
+  section keeps whatever the participant had in it.</li>
+ <li>The title follows <code>index.html:55</code> exactly (an <code>h2.section-title</code> with <code>span.optional</code> and parentheses). It is
+  the only <code>h2</code> on the screen; <code>h1, h2 { margin: 0 }</code> keeps it on the summary line.</li>
+ <li><code>type="url"</code> gives phones a URL keyboard; there is no enclosing <code>&lt;form&gt;</code>, so no browser validation UI appears.
+  <code>#shortenOut</code> is a <code>readonly</code> text input in the mono <code>in--url</code> style, the same as the hint-link field.</li>
+ <li>Every class token is already styled except <code>tool</code>, which §4.3 styles; both inline styles are <code>display: none</code>; no
+  colour literal; no removed class (§1 guard rules).</li>
+</ul>
+
+<h3>4.2 Wiring</h3>
+<p>In <code>showCreateHints</code>, after the existing <code>#hintsText</code> listener, attach an <code>input</code> listener to
+<code>#shortenIn</code> that calls a module-level <code>function renderShortener()</code> (not exported; it lives in <code>wishlist.js</code>
+above <code>showCreateHints</code>). <code>renderShortener</code> reads <code>#shortenIn.value</code>, calls <code>shortenLink</code>, and sets the
+DOM from the state and nothing else:</p>
+<table>
+<tr><th>state</th><th><code>#shortenResult</code></th><th><code>#shortenOut.value</code></th><th><code>#shortenNote</code></th></tr>
+<tr><td><code>empty</code></td><td><code>display: none</code></td><td>unchanged</td><td><code>display: none</code></td></tr>
+<tr><td><code>notUrl</code></td><td><code>display: none</code></td><td>unchanged</td><td>shown; text "Paste one full link, starting with http."</td></tr>
+<tr><td><code>unchanged</code></td><td><code>display: none</code></td><td>unchanged</td><td>shown; text "That link is already as short as it gets."</td></tr>
+<tr><td><code>short</code></td><td>shown (<code>style.display = ''</code>)</td><td><code>url</code></td><td><code>display: none</code></td></tr>
+</table>
+<ul>
+ <li>Show/hide is <code>el.style.display = 'none'</code> / <code>''</code>, the pattern the file already uses; no class toggling, no new CSS for
+  visibility.</li>
+ <li>Values go through <code>.value</code> and <code>.textContent</code>, never <code>innerHTML</code>, so no escaping question arises.</li>
+ <li><code>renderShortener</code> and the listener reference <code>shortenIn</code>, <code>shortenOut</code>, <code>shortenResult</code> and
+  <code>shortenNote</code> only &mdash; never <code>hintsText</code> (REQ-SSS-0003.5). Copy uses <code>copyToClipboard</code> through the
+  existing <code>window</code> shim, unchanged.</li>
+</ul>
+
+<h3>4.3 CSS (<code>css/styles.css</code>)</h3>
+<p>One new rule group, placed after the <code>details.how</code> group (lines 344-376) and modelled on it, with a comment line naming this spec.
+Rendered result: the summary line shows a small grey chevron, "▸" closed and "▾" open, before the serif title; no default disclosure
+marker; pointer cursor. No hover colour.</p>
+<pre><code>/* The shorten-a-link tool on the wishlist screen (spec 2026-10-04-shorten-link-tool-design §4.3). */
+details.tool summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+details.tool summary::-webkit-details-marker {
+    display: none;
+}
+
+details.tool summary::before {
+    content: "▸ ";
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: var(--t-note);
+}
+
+details.tool[open] summary::before {
+    content: "▾ ";
+}</code></pre>
+<p>If <code>details.how</code>'s summary rules already set <code>cursor</code> and <code>list-style</code> in a way that can be shared without
+changing the main page, the lead may share them; the rendered result above is what is checked. Only the <code>tool</code> class is new; it is
+used by §4.1, so both class checks in <code>templates.test.js</code> pass. Every value is a token or unrestricted property under
+<code>styles.test.js</code> (§1).</p>
+
+<h2>5. Copy (REQ-SSS-0007.1)</h2>
+<table>
+<tr><th>Where</th><th>String</th><th>Note</th></tr>
+<tr><td>Summary, <code>h2.section-title</code></td><td>Shorten a link <span style="color:#5c6670">(optional)</span></td><td>Title chosen by the user; "(optional)" in the existing <code>span.optional</code> shape.</td></tr>
+<tr><td>Description, <code>p.note</code></td><td>Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.</td><td>Names exactly the six hosts in the earlier spec's §2.2 table and the generic rule. Says nothing about privacy or protection. If the shop table ever changes, this sentence changes with it.</td></tr>
+<tr><td><code>#shortenIn</code> placeholder</td><td>https://www.amazon.com/…</td><td>Shows the expected shape (full URL with scheme).</td></tr>
+<tr><td>Copy button</td><td>Copy short link</td><td><code>copyToClipboard</code> restores this label after "✓ Copied".</td></tr>
+<tr><td><code>#shortenNote</code>, state <code>notUrl</code></td><td>Paste one full link, starting with http.</td><td></td></tr>
+<tr><td><code>#shortenNote</code>, state <code>unchanged</code></td><td>That link is already as short as it gets.</td><td>Also the message for a short link such as a.co, which the code cannot expand (REQ-SSS-0004).</td></tr>
+<tr><td><code>README.md:11</code>, replacing "Shop links in a wishlist are trimmed to their short form so the wishlist link stays short."</td><td>A "Shorten a link" tool on the wishlist page cuts long shop links down to just the product, so you can paste the short one into your wishlist.</td><td>Same claim as the description, no stronger. Line 15 ("everything runs locally") stays true: nothing is fetched.</td></tr>
+</table>
+<p>Removed: the link-ready note "Shortened N links." / "Shortened 1 link." (earlier spec §4). Nothing replaces it.</p>
+
+<h2>6. Tests</h2>
+<p>Runner: <code>node --test</code> via <code>npm test</code>; no dependencies, no DOM. Every new test name carries the sub-ID it serves.</p>
+<h3>6.1 <code>test/shorten.test.js</code> (new)</h3>
+<ul>
+ <li><code>''</code>, <code>'   '</code> &rarr; <code>empty</code>.</li>
+ <li><code>'socks'</code>, <code>'www.amazon.com/dp/B0ABCDEFGH'</code>, <code>'mailto:a@b.c'</code>, <code>'https://'</code> &rarr; <code>notUrl</code>.</li>
+ <li><code>'https://example.com/item?size=M'</code>, <code>'https://a.co/d/abc123'</code>, <code>'https://www.amazon.com/dp/B0ABCDEFGH'</code> (already short) &rarr; <code>unchanged</code>.</li>
+ <li>A long Amazon URL with slug, <code>ref=</code>, <code>tag=</code> &rarr; <code>{ state: 'short', url: 'https://www.amazon.com/dp/B0ABCDEFGH' }</code>; an Etsy URL with <code>?ref=x&amp;variation0=1</code> &rarr; <code>short</code> with <code>?variation0=1</code> kept; a non-shop URL with <code>?utm_source=x&amp;id=7</code> &rarr; <code>short</code>, <code>?id=7</code>.</li>
+ <li>Leading and trailing whitespace around a long Amazon URL &rarr; the same <code>short</code> result as without it.</li>
+ <li><code>shortenLink(shortenLink(u).url).state === 'unchanged'</code> for the Amazon case (idempotence through the tool).</li>
+</ul>
+<h3>6.2 <code>test/wishlist-wiring.test.js</code> (rewritten; keep the <code>functionText</code> helper)</h3>
+<ul>
+ <li>Import line: <code>/^import \{ shortenLink \} from '\.\.\/shorten\.js';$/m</code> matches, and no line imports from <code>'../urls.js'</code>.</li>
+ <li><code>generateHintLink</code> body: contains <code>encodeHints(hintsText,</code>; contains neither <code>tidyUrls(</code>, <code>tidyUrl(</code>,
+  <code>shortenLink(</code>, <code>shortenIn</code> nor <code>Shortened</code> (REQ-SSS-0003.1, 0003.5).</li>
+ <li><code>showCreateHints</code> body: contains <code>&lt;details class="tool"&gt;</code> and not <code>&lt;details class="tool" open</code> or
+  <code>&lt;details open</code>; contains <code>id="shortenIn"</code>, <code>id="shortenOut"</code>, <code>id="shortenResult"</code>,
+  <code>id="shortenNote"</code>; the Generate button's <code>onclick="generateHintLink()"</code> appears before <code>&lt;details class="tool"&gt;</code>,
+  which appears before <code>class="nav"</code> (REQ-SSS-0003.2 placement); contains the §5 description string and the §5 title string verbatim
+  (REQ-SSS-0007.1).</li>
+ <li>The source slice from <code>function renderShortener</code> to the next <code>\nexport </code> (or <code>\nfunction </code>) calls
+  <code>shortenLink(</code> and does not contain <code>hintsText</code> (REQ-SSS-0003.5); it contains both §5 note strings verbatim.</li>
+</ul>
+<h3>6.3 Existing suites</h3>
+<ul>
+ <li><code>test/urls.test.js</code>: untouched; <code>js/urls.js</code> is byte-identical, so it stays green and its REQ-SSS-0003.x citations keep
+  referring to the earlier spec.</li>
+ <li><code>test/templates.test.js</code> and <code>test/styles.test.js</code>: no change; §4 was checked against their rules (§1).</li>
+ <li><code>test/copy-button.test.js</code>, <code>test/legacy-removed.test.js</code>, <code>test/golden.test.js</code>, <code>test/format.test.js</code>,
+  <code>test/compress.test.js</code>: untouched; the codec and the legacy strings do not change.</li>
+</ul>
+
+<h2>7. Manual check</h2>
+<p>The director runs it on the VM copy after merge, on a phone-width window. Open an assignment link, Create your wishlist. Expect: the
+screen shows the textarea, the note, Generate, a rule, a closed "Shorten a link (optional)" line with a chevron, and Back. Tap the title:
+it opens with the description and an empty field, nothing else. Paste a long Amazon URL: the short link appears in a mono field with
+"Copy short link"; press it, see "✓ Copied", paste into the wishlist box. Replace the field with <code>socks</code>: the result goes, the
+http note shows. Replace with <code>https://a.co/d/abc123</code>: the "already as short" note shows. Clear it: nothing shows. Type a long
+Amazon URL into the <em>wishlist</em> box itself and Generate: the link-ready screen has no "Shortened" note; Back shows the text exactly as
+typed; opening the wishlist link with the password shows the long URL verbatim.</p>
+
+<h2>8. Constraints on the implementation</h2>
+<ul>
+ <li><code>js/urls.js</code> is byte-identical: <code>git diff main -- js/urls.js</code> is empty at the end of the branch.</li>
+ <li>No dependency, no build step, no fetch (REQ-SSS-0004, 0005). No change to <code>index.html</code>, <code>js/main.js</code>,
+  <code>js/ui/dom.js</code>, <code>js/format.js</code>, <code>js/compress.js</code>, <code>js/secret.js</code>.</li>
+ <li>In <code>wishlist.js</code> only <code>showCreateHints</code>, <code>generateHintLink</code>, the import line and the new
+  <code>renderShortener</code> change; inline <code>onclick</code> handlers stay as they are; no inline style other than <code>display: none</code>;
+  no colour literal; no new class other than <code>tool</code>.</li>
+ <li>Commit per task on branch <code>shorten-link-tool</code>; do not push; do not merge to main &mdash; the director does that on the user's ruling.</li>
+</ul>
+
+<h2>9. Scope</h2>
+<p><strong>In:</strong> §§2-6 and the README sentence.</p>
+<p><strong>Out:</strong> the seven <code>/code-review</code> findings of 2026-10-04 against <code>js/urls.js</code> (glued punctuation after a query,
+apostrophes splitting a URL, dangling <code>?</code> after an emptied query, CJK trailing punctuation, <code>;</code> as a separator, the double
+ID regex, and the pre-confirm textarea rewrite &mdash; the last is removed by §2, the rest wait for their own spec); pasting several links at
+once; detecting links in the wishlist text; any change to the 1500/2000-character thresholds or their wording; the base2048 alphabet spike.</p>
+
+</body></html>

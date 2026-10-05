@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype — Shorten a link</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../css/styles.css">
+    <style>
+        /* Prototype chrome only — not part of the design. */
+        .proto { font-size: var(--t-note); color: var(--text-3); text-align: center; margin-bottom: var(--s-3); }
+
+        /* Candidate rules for styles.css: the collapsible tool. */
+        details.tool > summary {
+            cursor: pointer;
+            list-style: none;
+        }
+        details.tool > summary::-webkit-details-marker { display: none; }
+        details.tool > summary::before {
+            content: '▸ ';
+            color: var(--text-3);
+            font-family: var(--font-sans);
+            font-size: var(--t-note);
+        }
+        details.tool[open] > summary::before { content: '▾ '; }
+    </style>
+</head>
+<body>
+    <p class="proto">Prototype for docs/superpowers/specs/2026-10-04-shorten-link-tool-design.html. Serve the repo root (python3 -m http.server) and open this file. Opens with an example link already pasted so the result is visible; clear it to try your own.</p>
+
+    <div id="hintsSection" class="card">
+        <div class="stars">
+            <span class="star-gold">✦</span>
+            <span class="star-ice">✦</span>
+            <span class="star-green">✦</span>
+            <span class="star-silver">✦</span>
+            <span class="star-red">✦</span>
+        </div>
+        <h1>Your wishlist</h1>
+        <div id="hintsForm" class="left mt-5">
+            <textarea id="hintsText" class="in" placeholder="Gift ideas, preferences, sizes, favorite things…"></textarea>
+            <p class="note mt-2">Wishlists are gift-wrapped, not locked up. Keep anything private off them. 🎁</p>
+            <p id="hintLengthWarning" class="note text-danger mt-2" style="display: none;"></p>
+            <div id="slotB"></div>
+            <button class="btn btn--primary btn--block mt-3" onclick="alert('Prototype: this would generate the link from the wishlist text exactly as typed.')">Generate link</button>
+            <div id="slotA"></div>
+            <p class="nav"><button class="link" onclick="alert('Prototype: Back')">Back</button></p>
+        </div>
+    </div>
+
+    <!-- The tool block. One node, moved between the two slots by the prototype switcher. -->
+    <template id="toolTpl">
+        <div id="shortenTool">
+            <hr class="sep">
+            <details class="tool">
+                <summary><h2 class="section-title" id="toolTitle">Shorten a link <span class="optional">(optional)</span></h2></summary>
+                <p class="note mt-2">Paste a link to get a shorter one for your wishlist. Amazon, Etsy, eBay, Walmart, Target and Best Buy links are cut down to just the product; other links only lose their tracking tags.</p>
+                <input type="url" id="shortenIn" class="in mt-3" placeholder="https://www.amazon.com/…" autocomplete="off" spellcheck="false">
+                <div id="shortenResult" style="display: none;">
+                    <input type="text" id="shortenOut" class="in in--url mt-3" readonly>
+                    <button class="btn btn--secondary btn--block mt-3" onclick="copyToClipboard(document.getElementById('shortenOut').value, this)">Copy short link</button>
+                </div>
+                <p id="shortenNote" class="note mt-2" style="display: none;"></p>
+            </details>
+        </div>
+    </template>
+
+    <script type="module">
+        import { tidyUrl } from '../../../js/urls.js';
+        import { copyToClipboard } from '../../../js/ui/dom.js';
+        window.copyToClipboard = copyToClipboard;
+
+        const EXAMPLE = 'https://www.amazon.com/Some-Very-Long-Product-Title-Here/dp/B0ABCDEFGH/ref=sr_1_3?crid=ABC&keywords=book&qid=1700000000&sprefix=boo%2Caps%2C150&sr=8-3&tag=xyz-20';
+        let title = 'Shorten a link';
+        let wasOpen = false;
+
+        function mount(slotId) {
+            const old = document.getElementById('shortenTool');
+            const prevIn = old ? document.getElementById('shortenIn').value : EXAMPLE;
+            if (old) { wasOpen = old.querySelector('details').open; old.remove(); }
+            const node = document.getElementById('toolTpl').content.cloneNode(true);
+            document.getElementById(slotId).appendChild(node);
+            document.querySelector('details.tool').open = wasOpen;
+            const input = document.getElementById('shortenIn');
+            input.addEventListener('input', refresh);
+            input.value = prevIn;
+            refresh();
+        }
+
+        function isHttpUrl(s) {
+            try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:'; }
+            catch { return false; }
+        }
+
+        function refresh() {
+            const text = document.getElementById('shortenIn').value.trim();
+            const result = document.getElementById('shortenResult');
+            const note = document.getElementById('shortenNote');
+            result.style.display = 'none';
+            note.style.display = 'none';
+            if (text === '') return;
+            if (!isHttpUrl(text)) {
+                note.textContent = 'Paste one full link, starting with http.';
+                note.style.display = '';
+                return;
+            }
+            const short = tidyUrl(text);
+            if (short === text) {
+                note.textContent = 'That link is already as short as it gets.';
+                note.style.display = '';
+                return;
+            }
+            document.getElementById('shortenOut').value = short;
+            result.style.display = '';
+        }
+
+        window.place = function (which) {
+            mount(which === 'A' ? 'slotA' : 'slotB');
+            document.getElementById('pA').className = 'link' + (which === 'A' ? ' on' : '');
+            document.getElementById('pB').className = 'link' + (which === 'B' ? ' on' : '');
+        };
+
+        window.setTitle = function (btn, t) {
+            title = t;
+            document.getElementById('toolTitle').textContent = t;
+            for (const b of btn.parentElement.querySelectorAll('.link')) b.className = 'link';
+            btn.className = 'link on';
+        };
+
+        document.getElementById('hintsText').addEventListener('input', function() {
+            const length = this.value.length;
+            const warning = document.getElementById('hintLengthWarning');
+            if (length > 1500) {
+                warning.style.display = 'block';
+                warning.textContent = `Note: ${length} characters may create a long URL.`;
+            } else {
+                warning.style.display = 'none';
+            }
+        });
+
+        mount('slotA');
+    </script>
+</body>
+</html>
