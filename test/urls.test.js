@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tidyUrl, tidyUrls } from '../js/urls.js';
+import { tidyUrl } from '../js/urls.js';
+import * as urls from '../js/urls.js';
 
-// Spec docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html §2, §5.1.
+// Spec docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html §2, §5.1,
+// amended by docs/superpowers/specs/2026-10-05-url-cleanup-followup-design.html §7.2.
 
 const SHOPS = [
   ['Amazon .com, slug and ref path',
@@ -35,6 +37,12 @@ const SHOPS = [
   ['Best Buy',
     'https://www.bestbuy.com/site/sony-wh-1000xm5-wireless-headphones-black/6505727.p?skuId=6505727&utm_campaign=gift',
     'https://www.bestbuy.com/site/6505727.p'],
+  ['REQ-SSS-0003.9: Best Buy /product/<slug>/<BSIN>, the user\'s link',
+    'https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS?irclickid=U%3AxW%3ARQwtxyZRhcy-WznJwsKUkrwJAwAe26LSg0&irgwc=1&afsrc=1&loc=The%20WireCutter&acampID=&mpid=197432&affgroup=%22Content%22',
+    'https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS'],
+  ['REQ-SSS-0003.9: Best Buy /product/<BSIN> with no slug falls to the generic rule',
+    'https://www.bestbuy.com/product/J7XSRH4KQS?utm_source=x',
+    'https://www.bestbuy.com/product/J7XSRH4KQS'],
 ];
 
 for (const [name, long, short] of SHOPS) {
@@ -161,86 +169,6 @@ test('tidyUrl is idempotent', () => {
   assert.equal(tidyUrl(tidyUrl(generic)), tidyUrl(generic));
 });
 
-test('tidyUrls: upper-case scheme is found and cleaned', () => {
-  assert.deepEqual(tidyUrls('HTTPS://WWW.AMAZON.COM/dp/B0ABCDEFGH?tag=x'),
-    { text: 'https://www.amazon.com/dp/B0ABCDEFGH', shortened: 1 });
-});
-
-test('tidyUrls: two shop URLs among prose; prose byte-identical', () => {
-  const text = '- Orchid set: https://www.amazon.com/LEGO/dp/B09HQXYZ12/ref=sr_1_3?th=1\n'
-    + '- Wallet  (brown, not black) — https://www.etsy.com/listing/1234567890/wallet?ref=hp\n'
-    + '- Socks, size 10–12 ✓';
-  assert.deepEqual(tidyUrls(text), {
-    text: '- Orchid set: https://www.amazon.com/dp/B09HQXYZ12\n'
-      + '- Wallet  (brown, not black) — https://www.etsy.com/listing/1234567890\n'
-      + '- Socks, size 10–12 ✓',
-    shortened: 2,
-  });
-});
-
-test('tidyUrls: trailing full stop stays outside the URL', () => {
-  assert.deepEqual(tidyUrls('Get this: https://www.amazon.com/x/dp/B0ABCDEFGH?th=1.'),
-    { text: 'Get this: https://www.amazon.com/dp/B0ABCDEFGH.', shortened: 1 });
-});
-
-test('tidyUrls: URL wrapped in parentheses keeps them', () => {
-  assert.deepEqual(tidyUrls('a scarf (https://www.etsy.com/listing/123/slug?ref=x) please'),
-    { text: 'a scarf (https://www.etsy.com/listing/123) please', shortened: 1 });
-});
-
-test('tidyUrls: "(…)." keeps both the ) and the .', () => {
-  assert.deepEqual(tidyUrls('(https://www.etsy.com/listing/123/slug?ref=x).'),
-    { text: '(https://www.etsy.com/listing/123).', shortened: 1 });
-});
-
-test('tidyUrls: a Wikipedia-style URL keeps its balanced )', () => {
-  const text = 'see https://en.wikipedia.org/wiki/Heat_(1995_film)?utm_source=x';
-  assert.deepEqual(tidyUrls(text),
-    { text: 'see https://en.wikipedia.org/wiki/Heat_(1995_film)', shortened: 1 });
-  const plain = 'see https://en.wikipedia.org/wiki/Heat_(1995_film).';
-  assert.deepEqual(tidyUrls(plain), { text: plain, shortened: 0 });
-});
-
-test('tidyUrls: the same URL pasted twice counts twice', () => {
-  const url = 'https://www.amazon.com/x/dp/B0ABCDEFGH?th=1';
-  assert.deepEqual(tidyUrls(`${url}\n${url}`), {
-    text: 'https://www.amazon.com/dp/B0ABCDEFGH\nhttps://www.amazon.com/dp/B0ABCDEFGH',
-    shortened: 2,
-  });
-});
-
-test('tidyUrls: an unchanged URL is not counted', () => {
-  const text = 'size M: https://shop.example.com/item?size=M and https://a.co/d/abc123';
-  assert.deepEqual(tidyUrls(text), { text, shortened: 0 });
-});
-
-test('tidyUrls: text with no URL comes back as is', () => {
-  const text = '  Books!  Anything by Le Guin; socks (wool).\n\nhttp:// alone, https://';
-  assert.deepEqual(tidyUrls(text), { text, shortened: 0 });
-});
-
-test('tidyUrls: quotes and angle brackets end a URL', () => {
-  assert.deepEqual(tidyUrls('<https://x.example/a?utm_source=1> "https://x.example/b?fbclid=2"'),
-    { text: '<https://x.example/a> "https://x.example/b"', shortened: 2 });
-});
-
-// Text glued onto a URL with no space is not part of it and must survive
-// (REQ-SSS-0003.3): no rule may discard it, so the URL is left as written.
-const GLUED = [
-  'https://www.amazon.com/dp/B0ABCDEFGH这个很好',
-  '想要这个https://www.amazon.com/x/dp/B0ABCDEFGH?tag=x。谢谢',
-  'https://www.amazon.com/dp/B0ABCDEFGH,https://www.etsy.com/listing/123/slug',
-  '**https://www.amazon.com/dp/B0ABCDEFGH**',
-  'https://example.com/item?utm_source=x这个很好',
-  'https://example.com/item?a=1&utm_source=x,https://www.etsy.com/listing/1',
-];
-
-for (const text of GLUED) {
-  test(`tidyUrls: glued text survives: ${text}`, () => {
-    assert.deepEqual(tidyUrls(text), { text, shortened: 0 });
-  });
-}
-
 test('an ID followed by more ID characters is not an ID', () => {
   const url = 'https://www.ebay.com/itm/1234567890123456';
   assert.equal(tidyUrl(url), url);
@@ -251,7 +179,61 @@ test('a non-ASCII slug before the ID still shortens', () => {
     'https://www.amazon.co.jp/dp/B09HQXYZ12');
 });
 
-test('glued text survives while a tracking pair before it still goes', () => {
-  assert.deepEqual(tidyUrls('https://x.example/a?utm_source=1&size=M这个'),
-    { text: 'https://x.example/a?size=M这个', shortened: 1 });
+test('REQ-SSS-0003.3: text glued onto a shop URL is not discarded', () => {
+  const url = 'https://www.amazon.com/dp/B0ABCDEFGH这个很好';
+  assert.equal(tidyUrl(url), url);
+});
+
+test('REQ-SSS-0003.9: Best Buy /product/ keeps the slug as written, non-ASCII included', () => {
+  assert.equal(tidyUrl('https://www.bestbuy.com/product/caméra-noire/J7XSRH4KQS/sku/123?loc=x'),
+    'https://www.bestbuy.com/product/caméra-noire/J7XSRH4KQS');
+  assert.equal(tidyUrl('http://bestbuy.com/product/x/J7XSRH4KQS#reviews'),
+    'http://bestbuy.com/product/x/J7XSRH4KQS');
+});
+
+test('REQ-SSS-0003.9: Best Buy /product/ needs an upper-case 10-character BSIN', () => {
+  for (const url of [
+    'https://www.bestbuy.com/product/x/j7xsrh4kqs',
+    'https://www.bestbuy.com/product/x/J7XSRH4KQ',
+    'https://www.bestbuy.com/product/x/J7XSRH4KQSX',
+  ]) assert.equal(tidyUrl(url), url);
+});
+
+test('REQ-SSS-0003.9: the ID is matched once, on the written path, .. not resolved', () => {
+  // The parsed path resolves to /dp/B0BBBBBBBB; the written path names B0AAAAAAAA first.
+  assert.equal(tidyUrl('https://www.amazon.com/dp/B0AAAAAAAA/../dp/B0BBBBBBBB'),
+    'https://www.amazon.com/dp/B0AAAAAAAA');
+  const url = 'https://www.amazon.com/dp/x/../B0ABCDEFGH';
+  assert.equal(tidyUrl(url), url);
+});
+
+test('REQ-SSS-0003.12: urls.js exports tidyUrl only', () => {
+  assert.equal(urls.tidyUrls, undefined);
+  assert.deepEqual(Object.keys(urls), ['tidyUrl']);
+});
+
+test('REQ-SSS-0003.13: a query left with only empty pairs loses its ?', () => {
+  assert.equal(tidyUrl('https://x.example/a?utm_source=1&'), 'https://x.example/a');
+  assert.equal(tidyUrl('https://x.example/a?&utm_source=1'), 'https://x.example/a');
+  assert.equal(tidyUrl('https://x.example/a?utm_source=1&#top'), 'https://x.example/a#top');
+});
+
+test('REQ-SSS-0003.13: otherwise the remaining pairs are re-joined as written, empties included', () => {
+  assert.equal(tidyUrl('https://x.example/a?a=1&&utm_source=2'), 'https://x.example/a?a=1&');
+  assert.equal(tidyUrl('https://x.example/a?a=1&'), 'https://x.example/a?a=1&');
+  assert.equal(tidyUrl('https://x.example/a?'), 'https://x.example/a?');
+});
+
+test('REQ-SSS-0003.13: a pair containing ; is never removed', () => {
+  assert.equal(tidyUrl('https://x.example/a?utm_source=1;b=2'), 'https://x.example/a?utm_source=1;b=2');
+  assert.equal(tidyUrl('https://x.example/a?utm_source=1&c=3;d=4'), 'https://x.example/a?c=3;d=4');
+  assert.equal(tidyUrl('https://www.amazon.com/s?k=a&ref=x;y'), 'https://www.amazon.com/s?k=a&ref=x;y');
+});
+
+test('REQ-SSS-0003.10: names are compared lower-cased; kept text is not re-cased', () => {
+  assert.equal(tidyUrl('https://x.example/a?UTM_Source=1&GCLID=2&Size=M'), 'https://x.example/a?Size=M');
+  assert.equal(tidyUrl('https://x.example/a?%47CLID=1&gclid&Size=M'), 'https://x.example/a?Size=M');
+  assert.equal(tidyUrl('https://www.amazon.com/s?K=socks&TAG=x-20'), 'https://www.amazon.com/s?K=socks');
+  assert.equal(tidyUrl('https://www.etsy.com/listing/123/scarf?Variation0=1&ref=x'),
+    'https://www.etsy.com/listing/123?Variation0=1');
 });
