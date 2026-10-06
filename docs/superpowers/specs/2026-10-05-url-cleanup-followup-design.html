@@ -23,8 +23,8 @@
 
 <h1>URL Cleanup Follow-up</h1>
 <p class="byline">Design spec &middot; 2026-10-05 &middot; Simple Secret Santa<br>
-Target: <code>js/urls.js</code>, <code>js/shorten.js</code>, <code>test/urls.test.js</code>, <code>test/shorten.test.js</code>, new
-<code>test/urls-corpus.test.js</code>. No UI, CSS or README change.<br>
+Target: <code>js/urls.js</code> (rules changed; the unused multi-URL scanner removed), <code>js/shorten.js</code>, <code>test/urls.test.js</code>,
+<code>test/shorten.test.js</code>, new <code>test/urls-corpus.test.js</code>. No UI, CSS or README change.<br>
 Amends: <code>docs/superpowers/specs/2026-10-04-wishlist-url-cleanup-design.html</code> §2 (the module). Where the two differ, this document wins;
 everything in that §2 this document does not mention stands. The tool that calls the module is
 <code>docs/superpowers/specs/2026-10-04-shorten-link-tool-design.html</code> and is unchanged except §6 here.</p>
@@ -32,8 +32,10 @@ everything in that §2 this document does not mention stands. The tool that call
 <div class="note"><strong>Status: design approved in chat 2026-10-05.</strong> Prompted by a real link the user pasted into the shorten-a-link tool that came
 back "already as short as it gets": Best Buy's current <code>/product/&lt;slug&gt;/&lt;BSIN&gt;</code> form with an Impact-affiliate query
 (<code>irclickid, irgwc, afsrc, loc, acampID, mpid, affgroup</code>). Neither the Best Buy rule (legacy <code>/site/…/&lt;sku&gt;.p</code> only) nor
-the generic list (seven names plus <code>utm_</code>) knew any of it. The same spec takes the seven <code>/code-review</code> findings of
-2026-10-04 against <code>urls.js</code> and the lead's parked note from the shorten-link-tool branch (§0).</div>
+the generic list (seven names plus <code>utm_</code>) knew any of it. The same spec takes the <code>/code-review</code> findings of
+2026-10-04 against <code>urls.js</code> and the lead's parked note from the shorten-link-tool branch (§0). Critic findings 1&ndash;6 applied 2026-10-05:
+the multi-URL scanner <code>tidyUrls</code> has had no caller since the shorten-link tool shipped, so it is removed rather than fixed (§5).
+The user's link, verbatim: <code>https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS?irclickid=U%3AxW%3ARQwtxyZRhcy-WznJwsKUkrwJAwAe26LSg0&amp;irgwc=1&amp;afsrc=1&amp;loc=The%20WireCutter&amp;acampID=&amp;mpid=197432&amp;affgroup=%22Content%22</code>.</div>
 
 <h2>Requirements</h2>
 <h3>Decomposes</h3>
@@ -46,9 +48,9 @@ Sub-IDs are local to this spec and start at 0003.9: code and tests cite the two 
   parameter names without regard to case, and shall remove no name that can carry content.</li>
  <li><strong>REQ-SSS-0003.11</strong> On a shop host whose path holds no product ID, the generic rule shall also remove that shop's own
   tracking names listed in §4, and nothing that identifies a search, category, seller or product.</li>
- <li><strong>REQ-SSS-0003.12</strong> Text glued onto a URL &mdash; ASCII emphasis and bracket characters, sentence punctuation in any
-  script, and quoting apostrophes &mdash; shall be restored after the cleaned URL character for character, and an apostrophe inside a URL
-  shall not end it (§5).</li>
+ <li><strong>REQ-SSS-0003.12</strong> <code>js/urls.js</code> shall export <code>tidyUrl</code> only: the multi-URL text scanner
+  (<code>tidyUrls</code>, <code>URL_RUN</code>, <code>TRAILING</code>, <code>peel</code>, <code>count</code>), which no code has called since the
+  shorten-link tool replaced tidy-on-generate, is removed together with the tests that exercise only it (§5, §7.2).</li>
  <li><strong>REQ-SSS-0003.13</strong> A query whose remaining pairs are all empty shall lose its <code>?</code>; a pair containing
   <code>;</code> shall never be removed (§5).</li>
  <li><strong>REQ-SSS-0003.14</strong> <code>shortenLink</code> shall report input that contains whitespace after trimming as not a link (§6).</li>
@@ -65,7 +67,7 @@ their tracking tags" &mdash; stays true and stays as written); REQ-SSS-0006, 001
 <tr><td>Best Buy short form</td><td>Keeps the slug as written. The user opened <code>…/product/J7XSRH4KQS</code> (did not load) and <code>…/product/x/J7XSRH4KQS</code> (loaded): Best Buy needs a slug segment but ignores its text. No slug is invented; the one pasted is kept (user 2026-10-05).</td></tr>
 <tr><td>Where the lists come from</td><td>Borrowed, not guessed: Firefox's release query-stripping list, AdGuard's TrackParamFilter general and per-site rules, Impact's and eBay Partner Network's own parameter docs. Inclusion test for the generic list: a name that only ever carries a click or affiliate identifier (design, approved 2026-10-05).</td></tr>
 <tr><td>Case</td><td>Parameter names are compared lower-cased (<code>acampID</code> = <code>acampid</code>, <code>GCLID</code> = <code>gclid</code>); kept text is never re-cased (design, approved 2026-10-05).</td></tr>
-<tr><td>Review findings</td><td>Findings 1&ndash;6 fixed as §5; finding 7 (textarea rewritten before the confirm) was removed by the shorten-link-tool spec and needs nothing here. Lead's parked Minor 1 from that branch: whitespace in the field → <code>notUrl</code> (§6).</td></tr>
+<tr><td>Review findings</td><td>Findings 3, 5 and 6 (live code) fixed as §5. Findings 1, 2 and 4 are in the multi-URL scanner, which nothing calls; the critic showed the proposed fixes also regressed other cases, so the scanner is removed and those findings are moot (user 2026-10-05, over "keep and park" and "keep and fix as hygiene"). Finding 7 (textarea rewritten before the confirm) was removed by the shorten-link-tool spec. Lead's parked Minor 1 from that branch: whitespace in the field → <code>notUrl</code> (§6).</td></tr>
 <tr><td>UI copy</td><td>Unchanged. The description already says "product links" and "tracking tags"; the two notes stay (user 2026-10-05, by approving the design).</td></tr>
 </table>
 
@@ -82,11 +84,14 @@ their tracking tags" &mdash; stays true and stays as written); REQ-SSS-0006, 001
   102 and <code>discardableTail</code> at 103 — two matches of one pattern on two strings. <code>URL_RUN = /https?:\/\/[^\s&lt;&gt;"']+/gi</code> (110):
   an apostrophe ends a run. <code>TRAILING</code> (111): <code>. , ; : ! ? ' "</code> only. <code>peel</code> (116-125): <code>)</code> balanced.
   <code>tidyUrls</code> (127-137).</li>
- <li><code>js/shorten.js</code> (15 lines): trims, <code>new URL</code>, protocol check, then <code>tidyUrl</code>; <code>unchanged</code> when equal.</li>
+ <li><code>js/shorten.js</code> (15 lines): trims, <code>new URL</code>, protocol check, then <code>tidyUrl</code>; <code>unchanged</code> when equal.
+  It is the module's only production caller: <code>grep -rn tidyUrls js/ index.html</code> hits <code>js/urls.js</code> alone (the shorten-link-tool spec §3
+  said so when it landed). Lines 110-137 of <code>urls.js</code> are therefore dead; <code>URL_CHARS</code>/<code>foreign</code> (41-42) stay live through
+  <code>discardableTail</code> and <code>stripTracking</code>.</li>
  <li><code>test/urls.test.js</code> (257 lines): a <code>SHOPS</code> table of ten long→short pairs (7-38) run at 40-44 and through the idempotence
   test at 158-162; <code>UNCHANGED</code> (114-132) and <code>GLUED</code> (229-236) tables; the B1 tests at 58-82; "emptied query drops its ?" at
-  105-107 covers only the no-ampersand case; the GLUED entry <code>'**https://www.amazon.com/dp/B0ABCDEFGH**'</code> (233) passes only because it
-  has no query; GLUED 231 is <code>'想要这个https://www.amazon.com/x/dp/B0ABCDEFGH?tag=x。谢谢'</code> → unchanged (text after the stop).</li>
+  105-107 covers only the no-ampersand case; the tests that exercise only <code>tidyUrls</code> are those at lines 164, 169, 181, 186, 191, 196, 204, 212, 217, 222, the GLUED loop (229-242) and
+  254; every other test calls <code>tidyUrl</code> directly.</li>
  <li><code>test/shorten.test.js</code> (59 lines): line 56-59 "two links pasted at once do not throw" asserts only membership in the four states.</li>
  <li><code>test/wishlist-wiring.test.js:18-21</code> bans any import from <code>'../urls.js'</code> in <code>wishlist.js</code>; unaffected.
   <code>js/ui/wishlist.js:22-25</code> holds the two notes; unaffected.</li>
@@ -152,23 +157,22 @@ An entry ending in <code>*</code> is a prefix. Names are lower-case.</p>
 <p>Worked example: on a Best Buy page with no product ID, the user's query would lose <code>irclickid irgwc afsrc</code> by §3 and
 <code>loc acampID mpid affgroup</code> by this table, leaving no query at all; a Best Buy search page keeps its <code>st</code> and <code>id</code>.</p>
 
-<h2>5. Text-level fixes (REQ-SSS-0003.12, 0003.13)</h2>
+<h2>5. Query fixes and the scanner's removal (REQ-SSS-0003.12, 0003.13)</h2>
 <ol>
- <li><strong>Glued ASCII (finding 1).</strong> <code>TRAILING</code> gains <code>* _ ~</code>; <code>]</code> is peeled like <code>)</code>, only while the body
-  holds more <code>]</code> than <code>[</code>. Peeled characters are restored after the cleaned URL as today.</li>
- <li><strong>Apostrophes (finding 2).</strong> <code>URL_RUN</code> becomes <code>/https?:\/\/[^\s&lt;&gt;"]+/gi</code>: an apostrophe no longer ends a run.
-  A trailing <code>'</code> is still peeled (it is in <code>TRAILING</code>), so <code>'https://…?utm_source=1'</code> keeps its quotes.</li>
  <li><strong>Emptied query (finding 3).</strong> In <code>stripTracking</code>, after removing pairs: if every remaining pair is the empty string, the query
   goes entirely (no <code>?</code>); otherwise the remaining pairs are re-joined as written, empties included (<code>?a=1&amp;&amp;utm_source=2</code> →
   <code>?a=1&amp;</code>).</li>
- <li><strong>Non-ASCII punctuation (finding 4).</strong> <code>TRAILING</code> gains <code>。 、 ！ ？ ， ： ； ） 」 』 ’ ”</code>. A run ending in text
-  (<code>…?tag=x。谢谢</code>) is still glued and still left alone (GLUED 231).</li>
  <li><strong>Semicolons (finding 5).</strong> A pair whose text contains <code>;</code> is never removed, whatever its name (it joins the
   <code>foreign(pair)</code> keep condition).</li>
  <li><strong>One match (finding 6).</strong> §2.1.</li>
+ <li><strong>Removal.</strong> Delete <code>URL_RUN</code>, <code>TRAILING</code>, <code>count</code>, <code>peel</code> and <code>tidyUrls</code>
+  (<code>urls.js:110-137</code>) and the header comment's mention of them. Findings 1, 2 and 4 (glued <code>* _ ~ ]</code>, apostrophes, CJK punctuation) are
+  about that code and need nothing once it is gone. The earlier spec's §2.1 API shrinks to <code>export function tidyUrl(url)</code>.</li>
 </ol>
-<p>Unchanged: <code>URL_CHARS</code>, <code>foreign</code>, the GLUED policy (text glued to a URL means the URL is left as written), <code>keep</code>
-handling, idempotence (<code>tidyUrl(tidyUrl(u)) === tidyUrl(u)</code> must still hold for every case in §7).</p>
+<p>Case: <code>pairName</code> lower-cases (§3) and <strong>every</strong> name comparison uses it, including <code>keep</code> in <code>keptQuery</code>
+(critic finding 4): <code>?Variation0=1&amp;ref=x</code> on an Etsy hit → <code>?Variation0=1</code>, text as written. Unchanged: <code>URL_CHARS</code>,
+<code>foreign</code>, the GLUED principle inside <code>discardableTail</code> (a tail with foreign text means the written URL is left alone), and idempotence
+(<code>tidyUrl(tidyUrl(u)) === tidyUrl(u)</code> for every case in §7).</p>
 
 <h2>6. <code>shortenLink</code> (REQ-SSS-0003.14)</h2>
 <p>After trimming and before <code>new URL</code>: if the trimmed input contains any whitespace (<code>/\s/</code>), return <code>{ state: 'notUrl' }</code>.
@@ -182,7 +186,7 @@ written; where a test's expectation changes, the change is listed here and nowhe
 <p>A table of (name, input, expected) run through <code>tidyUrl</code>, plus idempotence over every row. Rows:</p>
 <table>
 <tr><th>Input</th><th>Expected</th></tr>
-<tr><td>The user's Best Buy link (full query as pasted, §Status)</td><td><code>https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS</code></td></tr>
+<tr><td><code>https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS?irclickid=U%3AxW%3ARQwtxyZRhcy-WznJwsKUkrwJAwAe26LSg0&amp;irgwc=1&amp;afsrc=1&amp;loc=The%20WireCutter&amp;acampID=&amp;mpid=197432&amp;affgroup=%22Content%22</code></td><td><code>https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS</code></td></tr>
 <tr><td><code>https://www.bestbuy.com/product/sony-…-black/J7XSRH4KQS</code> (already short)</td><td>unchanged</td></tr>
 <tr><td><code>https://www.bestbuy.com/product/J7XSRH4KQS?irgwc=1</code> (no slug)</td><td><code>https://www.bestbuy.com/product/J7XSRH4KQS</code> (generic rule only)</td></tr>
 <tr><td><code>https://www.bestbuy.com/site/sony-…/6364230.p?skuId=6364230&amp;irclickid=xyz&amp;irgwc=1&amp;ref=198&amp;loc=Wirecutter</code></td><td><code>https://www.bestbuy.com/site/6364230.p</code></td></tr>
@@ -214,21 +218,17 @@ written; where a test's expectation changes, the change is listed here and nowhe
   both lower-cased and upper-cased. Drift between spec and code shows up here.</li>
  <li>§4: for each shop, one fall-through URL with every listed name (and one <code>ath</code>/<code>wl</code>/<code>pd_rd_</code>/<code>pf_rd_</code> prefix
   case) plus one content name → only the content name survives; and one URL with a product ID → the row's short form regardless of the junk.</li>
- <li>§5.1: <code>'**https://www.amazon.com/x/dp/B0ABCDEFGH?tag=x**'</code> → <code>'**https://www.amazon.com/dp/B0ABCDEFGH**'</code>, 1;
-  <code>'[…?tag=x]'</code> → <code>'[…/dp/B0ABCDEFGH]'</code>; <code>_…?tag=x_</code> and <code>~…?ref=x~</code> likewise;
-  <code>'see [https://example.com/item?utm_source=x]'</code> → <code>'see [https://example.com/item]'</code>;
-  <code>'*https://example.com/item?a=1&amp;utm_source=x*'</code> → <code>'*https://example.com/item?a=1*'</code>;
-  <code>'[https://x.example/a[1]?utm_source=x]'</code> → <code>'[https://x.example/a[1]]'</code> (the unbalanced <code>]</code> is peeled, the balanced one stays inside).</li>
- <li>§5.2: <code>"https://www.etsy.com/listing/123/women's-scarf?ref=x"</code> → <code>https://www.etsy.com/listing/123</code>, 1;
-  <code>"'https://x.example/a?utm_source=1'"</code> → <code>"'https://x.example/a'"</code>, 1. The test at 222 ("quotes and angle brackets end a URL")
-  keeps its double-quote case and drops nothing.</li>
- <li>§5.3: <code>?utm_source=1&amp;</code> → no query; <code>?&amp;utm_source=1</code> → no query; <code>?a=1&amp;&amp;utm_source=2</code> → <code>?a=1&amp;</code>;
+ <li>§5.1: <code>?utm_source=1&amp;</code> → no query; <code>?&amp;utm_source=1</code> → no query; <code>?a=1&amp;&amp;utm_source=2</code> → <code>?a=1&amp;</code>;
   <code>?utm_source=1&amp;#top</code> → <code>#top</code>.</li>
- <li>§5.4: <code>'想要 https://www.amazon.com/x/dp/B0ABCDEFGH?tag=x。'</code> → <code>'想要 https://www.amazon.com/dp/B0ABCDEFGH。'</code>, 1;
-  <code>'…?tag=x！'</code>, <code>'…?tag=x」'</code>, <code>'“…?tag=x”'</code> likewise; GLUED 231 unchanged.</li>
- <li>§5.5: <code>https://x.example/a?utm_source=1;b=2</code> → unchanged; <code>https://x.example/a?utm_source=1&amp;c=3;d=4</code> → <code>?c=3;d=4</code>.</li>
- <li>§2.1: the ten existing <code>SHOPS</code> pairs unchanged; add the two Best Buy <code>/product/</code> pairs from §7.1 to that table so the idempotence
-  loop covers them.</li>
+  <li>§5.2: <code>https://x.example/a?utm_source=1;b=2</code> → unchanged; <code>https://x.example/a?utm_source=1&amp;c=3;d=4</code> → <code>?c=3;d=4</code>.</li>
+ <li>§5 case: <code>https://www.etsy.com/listing/123/scarf?Variation0=1&amp;ref=x</code> → <code>https://www.etsy.com/listing/123?Variation0=1</code>.</li>
+ <li>§5.4 removal: the import becomes <code>import { tidyUrl } from '../js/urls.js';</code>; the tests listed in §1 as exercising only <code>tidyUrls</code>
+  are deleted (none is rewritten against <code>tidyUrl</code>: what they checked — peeling, counting, prose survival — has no live equivalent). One guard
+  test: <code>import * as urls</code> and <code>assert.equal(urls.tidyUrls, undefined)</code>, named for REQ-SSS-0003.12. The GLUED cases that still matter
+  live on through <code>discardableTail</code>: keep one <code>tidyUrl</code> case <code>https://www.amazon.com/dp/B0ABCDEFGH这个很好</code> → unchanged
+  (today's test at 249 and the UNCHANGED table already cover the rest).</li>
+ <li>§2.1: the ten existing <code>SHOPS</code> pairs unchanged; add §7.1 rows 1 (the user's link → its short form) and 3 (no slug → generic rule) to that
+  table so the idempotence loop covers them.</li>
 </ul>
 <h3>7.3 <code>test/shorten.test.js</code></h3>
 <ul>
@@ -248,7 +248,7 @@ short link in a browser: the camera page loads.</p>
 
 <h2>9. Constraints on the implementation</h2>
 <ul>
- <li>No dependency, no build step, no fetch (REQ-SSS-0004, 0005). <code>urls.js</code> keeps its two exports and signatures; <code>shorten.js</code> its one.</li>
+ <li>No dependency, no build step, no fetch (REQ-SSS-0004, 0005). <code>urls.js</code> exports <code>tidyUrl(url): string</code> only; <code>shorten.js</code> keeps its one export.</li>
  <li>No change to <code>js/ui/*</code>, <code>index.html</code>, <code>css/styles.css</code>, <code>README.md</code>, or any file under <code>test/</code> other than
   the three named in §7.</li>
  <li>The lists in §3 and §4 are data at the top of <code>urls.js</code> with a comment naming this spec; the matching code is written once for both.</li>
@@ -259,6 +259,6 @@ short link in a browser: the camera page loads.</p>
 <p><strong>In:</strong> §§2-7.</p>
 <p><strong>Out:</strong> unwrapping Amazon <code>/sspa/click</code> (its <code>url=</code> parameter holds the real product URL); dropping eBay's empty
 <code>var=0</code>; expanding short links (<code>a.co</code>, <code>amzn.to</code>, <code>ebay.us</code>); new shops; any change to the tool's copy or to the
-wishlist screen; multi-link input to the tool.</p>
+wishlist screen; multi-link input to the tool (if it ever returns, a scanner is written fresh against this spec's rules, not revived from history).</p>
 
 </body></html>
