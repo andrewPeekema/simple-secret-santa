@@ -5,7 +5,6 @@ import { shortenLink } from '../js/shorten.js';
 // Spec docs/superpowers/specs/2026-10-04-shorten-link-tool-design.html §3, §6.1.
 const LONG_AMAZON = 'https://www.amazon.com/Cozy-Wool-Socks/dp/B0ABCDEFGH/ref=sr_1_3?keywords=socks&tag=abc-20';
 const SHORT_AMAZON = 'https://www.amazon.com/dp/B0ABCDEFGH';
-const STATES = new Set(['empty', 'notUrl', 'unchanged', 'short']);
 
 test('REQ-SSS-0003.7: empty or blank input is empty', () => {
   assert.deepEqual(shortenLink(''), { state: 'empty' });
@@ -53,7 +52,25 @@ test('REQ-SSS-0003.6: a short result is unchanged when fed back in', () => {
   assert.equal(shortenLink(shortenLink(LONG_AMAZON).url).state, 'unchanged');
 });
 
-test('REQ-SSS-0003.6: two links pasted at once do not throw', () => {
-  const r = shortenLink(`${LONG_AMAZON} https://www.etsy.com/listing/1/x?ref=y`);
-  assert.ok(STATES.has(r.state), JSON.stringify(r));
+test('REQ-SSS-0003.14: two links pasted at once are notUrl', () => {
+  assert.deepEqual(shortenLink(`${LONG_AMAZON} https://www.etsy.com/listing/1/x?ref=y`), { state: 'notUrl' });
+  assert.deepEqual(shortenLink(`${LONG_AMAZON}\nhttps://www.etsy.com/listing/1/x?ref=y`), { state: 'notUrl' });
+});
+
+test('REQ-SSS-0003.14: a link followed by words is notUrl', () => {
+  assert.deepEqual(shortenLink(`${LONG_AMAZON}, nice`), { state: 'notUrl' });
+});
+
+test('REQ-SSS-0003.14: a link with an internal newline or tab is notUrl', () => {
+  assert.deepEqual(shortenLink('https://www.amazon.com/Cozy-Wool-Socks/dp/B0ABCDEFGH\n/ref=sr_1_3?tag=abc-20'),
+    { state: 'notUrl' });
+  assert.deepEqual(shortenLink('https://www.amazon.com/Cozy-Wool-Socks/dp/B0ABCDEFGH\t?tag=abc-20'),
+    { state: 'notUrl' });
+});
+
+test('REQ-SSS-0003.9: the user\'s Best Buy link is cut to the product', () => {
+  const short = 'https://www.bestbuy.com/product/sony-cyber-shot-rx100-vii-20-1-megapixel-digital-camera-black/J7XSRH4KQS';
+  assert.deepEqual(
+    shortenLink(`${short}?irclickid=U%3AxW%3ARQwtxyZRhcy-WznJwsKUkrwJAwAe26LSg0&irgwc=1&afsrc=1&loc=The%20WireCutter&acampID=&mpid=197432&affgroup=%22Content%22`),
+    { state: 'short', url: short });
 });
