@@ -8,19 +8,45 @@
 // prefix. A query pair's name is lower-cased before it is looked up; the
 // pair's text is never changed.
 
-// Removed on every host (§3).
-const TRACKING = ['utm_*', 'fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid'];
+// Removed on every host (§3): names that only ever carry a click or affiliate
+// identifier, borrowed from Firefox's release query-stripping list, AdGuard's
+// TrackParamFilter and the affiliate networks' own docs. Never a name a page
+// may use for content (id, loc, q, k, keywords, si, ref, tag, from, source…).
+const TRACKING = [
+  'utm_*',
+  // the original list
+  'fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', '_ga', 'igshid',
+  // Firefox query-stripping (release)
+  'dclid', 'wbraid', 'gbraid', 'yclid', 'ysclid', 'twclid', 'wickedid', '_hsenc', '__hssc',
+  '__hstc', '__hsfp', 'hsctatracking', 'oly_anon_id', 'oly_enc_id', '__s', 'vero_id', 'mkt_tok',
+  // ad click IDs (AdGuard general)
+  'gclsrc', 'gad_source', 'gad_campaignid', 'srsltid', 'ttclid', 'fbadid', '_gl', '_hsmi',
+  'vero_conv', '_openstat', '_branch_match_id', '_branch_referrer',
+  // affiliate networks: Impact; CJ; ShareASale; Awin; Rakuten
+  'irclickid', 'irgwc', 'ir_campaignid', 'ir_adid', 'ir_partnerid', 'sharedid', 'subid1',
+  'subid2', 'subid3', 'afsrc', 'clickid', 'clkid',
+  'cjevent', 'cjdata',
+  'sscid',
+  'awc',
+  'ranmid', 'raneaid', 'ransiteid',
+];
 
-// Removed on a shop host only when no product ID matched (§4). Every shop
-// list includes ref, ref_ and tag (ruling B1 of the 2026-10-04 spec).
+// Removed on a shop host only when no product ID matched (§4), as well as the
+// list above. Every shop list includes ref, ref_ and tag (ruling B1 of the
+// 2026-10-04 spec). Nothing here identifies a search, category, seller or product.
 const SHOP_COMMON = ['ref', 'ref_', 'tag'];
 const JUNK = {
-  amazon: SHOP_COMMON,
-  etsy: SHOP_COMMON,
-  ebay: SHOP_COMMON,
-  walmart: SHOP_COMMON,
-  target: SHOP_COMMON,
-  bestbuy: SHOP_COMMON,
+  amazon: [...SHOP_COMMON, 'linkcode', 'ascsubtag', 'crid', 'sprefix', 'qid', 'sr', 'dib',
+    'dib_tag', 'th', 'psc', 'pd_rd_*', 'pf_rd_*'],
+  etsy: [...SHOP_COMMON, 'click_key', 'click_sum', 'ga_order', 'ga_search_type', 'ga_view_type',
+    'ga_search_query', 'frs', 'sts', 'organic_search_click', 'pro', 'content_source'],
+  ebay: [...SHOP_COMMON, 'mkevt', 'mkcid', 'mkrid', 'campid', 'toolid', 'customid', 'siteid',
+    'mkgroupid', 'mkcrid', 'hash', 'amdata', '_trkparms', '_trksid', 'itmmeta'],
+  walmart: [...SHOP_COMMON, 'from', 'wmlspartner', 'adid', 'veh', 'sourceid', 'affiliates_ad_id',
+    'campaign_id', 'ath*', 'wl*'],
+  target: [...SHOP_COMMON, 'afid', 'cpng', 'lnm', 'lid', 'dfa', 'fndsrc', 'adgroup', 'network',
+    'device', 'location', 'targetid', 'ds_rl', 'clkid'],
+  bestbuy: [...SHOP_COMMON, 'mpid', 'acampid', 'affgroup', 'loc'],
 };
 
 // A test for one list of names: exact names, plus prefixes from entries ending in *.
